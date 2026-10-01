@@ -159,13 +159,10 @@ namespace AutoCutPic.Core
             if (viewportW <= 40 || viewportH <= 40 || origW <= 0 || origH <= 0 || targetSize == null)
                 return default;
 
-            bool isPortrait = origH > origW;
-            int baseW = Math.Max(targetSize.PixelWidth, targetSize.PixelHeight);
-            int baseH = Math.Min(targetSize.PixelWidth, targetSize.PixelHeight);
-            int targetW = isPortrait ? baseH : baseW;
-            int targetH = isPortrait ? baseW : baseH;
-
-            double targetAR = (double)targetW / targetH;
+            var targetPaper = AutoCutPic.Core.Calculators.CropGeometryCalculator.CalculateTargetPaperDimensions(targetSize, origW, origH);
+            int targetW = targetPaper.Width;
+            int targetH = targetPaper.Height;
+            double targetAR = targetPaper.AspectRatio;
             double photoAR = (double)origW / origH;
 
             // 预留工作台四周安全边距 60px

@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -9,10 +11,20 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using AutoCutPic.Core;
+using AutoCutPic.Core.Abstractions;
 using ImageMagick;
 
 namespace AutoCutPic.ViewModels
 {
+    public enum AlignmentDirection
+    {
+        Top,
+        Bottom,
+        Left,
+        Right,
+        Center
+    }
+
     public class PhotoViewModel : INotifyPropertyChanged
     {
         private double _offsetX;
@@ -93,6 +105,9 @@ namespace AutoCutPic.ViewModels
         public RelayCommand(Action execute)
             : this(_ => execute()) { }
 
+        public RelayCommand(Action execute, Func<bool>? canExecute)
+            : this(_ => execute(), canExecute == null ? null : _ => canExecute()) { }
+
         public RelayCommand(Action<object?> execute, Predicate<object?>? canExecute = null)
         {
             _execute = execute;
@@ -112,11 +127,16 @@ namespace AutoCutPic.ViewModels
 
     public class MainViewModel : INotifyPropertyChanged
     {
+        private readonly IImageProcessor _imageProcessor;
+
         private PhotoSize _selectedSize = PhotoSize.Inch6;
         private CutMode _selectedMode = CutMode.Fill;
         private string _statusText = "就绪";
         private double _zoomFactor = 1.0;
         private PhotoViewModel? _selectedPhoto;
+        private bool _isExporting;
+        private double _exportProgress;
+        private CancellationTokenSource? _exportCts;
 
         public ObservableCollection<PhotoSize> Sizes { get; } =
             new()
@@ -177,6 +197,26 @@ namespace AutoCutPic.ViewModels
             }
         }
 
+        public bool IsExporting
+        {
+            get => _isExporting;
+            set
+            {
+                _isExporting = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public double ExportProgress
+        {
+            get => _exportProgress;
+            set
+            {
+                _exportProgress = value;
+                OnPropertyChanged();
+            }
+        }
+
         private void OnSelectedPhotoChanged(PhotoViewModel? photo)
         {
             _highResCts?.Cancel();
@@ -186,7 +226,6 @@ namespace AutoCutPic.ViewModels
                 return;
             }
 
-            // 先使用缩略图无缝占位
             HighResPreview = photo.Thumbnail;
 
             _highResCts = new CancellationTokenSource();
@@ -197,10 +236,9 @@ namespace AutoCutPic.ViewModels
                 try
                 {
                     if (token.IsCancellationRequested) return;
-                    using var img = ImageProcessor.LoadImage(photo.FilePath);
+                    using var img = _imageProcessor.LoadImage(photo.FilePath);
                     if (token.IsCancellationRequested) return;
 
-                    // 高清大图预览，长边缩放至 1600px 兼顾清晰度与渲染性能
                     if (img.Width > 1600 || img.Height > 1600)
                     {
                         img.Resize(new MagickGeometry(1600, 1600));
@@ -216,7 +254,10 @@ namespace AutoCutPic.ViewModels
                         }
                     });
                 }
-                catch { }
+                catch
+                {
+                    // 降级回退保持缩略图展示
+                }
             }, token);
         }
 
@@ -241,11 +282,22 @@ namespace AutoCutPic.ViewModels
         }
 
         public ICommand ExportCommand { get; }
+        public ICommand CancelExportCommand { get; }
 
-        public MainViewModel()
+        public MainViewModel(IImageProcessor? imageProcessor = null)
         {
+            _imageProcessor = imageProcessor ?? ImageProcessor.Instance;
             _selectedSize = Sizes.FirstOrDefault(s => s.Name == "6寸") ?? PhotoSize.Inch6;
-            ExportCommand = new RelayCommand(async () => await ExecuteExport());
+
+            ExportCommand = new RelayCommand(
+                async _ => await ExecuteExport(),
+                _ => !IsExporting && Photos.Count > 0
+            );
+
+            CancelExportCommand = new RelayCommand(
+                _ => _exportCts?.Cancel(),
+                _ => IsExporting
+            );
         }
 
         public async Task LoadFiles(string[] allFiles)
@@ -266,10 +318,14 @@ namespace AutoCutPic.ViewModels
 
             var results = await Task.WhenAll(loadTasks);
             foreach (var photo in results)
+            {
                 Photos.Add(photo);
+            }
 
             if (Photos.Any())
+            {
                 SelectedPhoto = Photos[0];
+            }
             StatusText = $"已加载 {Photos.Count} 张图片";
         }
 
@@ -277,15 +333,13 @@ namespace AutoCutPic.ViewModels
         {
             try
             {
-                using var image = ImageProcessor.LoadImage(photo.FilePath);
+                using var image = _imageProcessor.LoadImage(photo.FilePath);
                 int origW = (int)image.Width;
                 int origH = (int)image.Height;
 
-                // 仅预览缩略图以节省资源
                 image.Resize(new MagickGeometry(300, 300));
                 var thumb = ConvertToBitmapSource(image);
 
-                // 转回 UI 线程
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     photo.OriginalWidth = origW;
@@ -293,10 +347,13 @@ namespace AutoCutPic.ViewModels
                     photo.Thumbnail = thumb;
                 });
             }
-            catch { }
+            catch
+            {
+                // 静默中性降级
+            }
         }
 
-        public void AdjustOffsetBatch(System.Collections.IEnumerable items, double dx, double dy)
+        public void AdjustOffsetBatch(IEnumerable items, double dx, double dy)
         {
             foreach (PhotoViewModel photo in items)
             {
@@ -305,27 +362,27 @@ namespace AutoCutPic.ViewModels
             }
         }
 
-        public void AlignBatch(System.Collections.IEnumerable items, string direction)
+        public void AlignBatch(IEnumerable items, AlignmentDirection direction)
         {
             foreach (PhotoViewModel photo in items)
             {
-                switch (direction.ToLower())
+                switch (direction)
                 {
-                    case "top":
-                    case "w":
+                    case AlignmentDirection.Top:
                         photo.OffsetY = -0.5;
                         break;
-                    case "bottom":
-                    case "s":
+                    case AlignmentDirection.Bottom:
                         photo.OffsetY = 0.5;
                         break;
-                    case "left":
-                    case "a":
+                    case AlignmentDirection.Left:
                         photo.OffsetX = -0.5;
                         break;
-                    case "right":
-                    case "d":
+                    case AlignmentDirection.Right:
                         photo.OffsetX = 0.5;
+                        break;
+                    case AlignmentDirection.Center:
+                        photo.OffsetX = 0.0;
+                        photo.OffsetY = 0.0;
                         break;
                 }
             }
@@ -335,54 +392,65 @@ namespace AutoCutPic.ViewModels
         {
             if (!Photos.Any())
             {
-                StatusText = "请先拖入图片";
+                StatusText = "请先添加图片";
                 return;
             }
-            string outputFolder = Path.Combine(
-                Path.GetDirectoryName(Photos[0].FilePath) ?? "",
-                "Clipped_Photos"
-            );
-            await ExportAll(Photos.ToList(), outputFolder);
-        }
 
-        private async Task ExportAll(List<PhotoViewModel> photos, string outputFolder)
-        {
-            if (!Directory.Exists(outputFolder))
-                Directory.CreateDirectory(outputFolder);
-            StatusText = "正在导出...";
-            int count = 0;
+            string firstFileDir = Path.GetDirectoryName(Photos[0].FilePath) ?? "";
+            string outputFolder = Path.Combine(firstFileDir, "Clipped_Photos");
 
-            await Task.Run(() =>
+            var exportItems = Photos
+                .Select(p => new PhotoExportItem(p.FilePath, p.OffsetX, p.OffsetY))
+                .ToList();
+
+            var cropSettings = new CropSettings
             {
-                Parallel.ForEach(
-                    photos,
-                    photo =>
-                    {
-                        try
-                        {
-                            using var image = ImageProcessor.LoadImage(photo.FilePath);
-                            using var processed = ImageProcessor.ProcessImage(
-                                image,
-                                new CropSettings { TargetSize = SelectedSize, Mode = SelectedMode },
-                                photo.OffsetX,
-                                photo.OffsetY
-                            );
+                TargetSize = SelectedSize,
+                Mode = SelectedMode
+            };
 
-                            string outPath = Path.Combine(
-                                outputFolder,
-                                $"{Path.GetFileNameWithoutExtension(photo.FilePath)}_{SelectedSize.Name}.jpg"
-                            );
-                            processed.Write(outPath);
-                            Interlocked.Increment(ref count);
-                        }
-                        catch { }
-                    }
-                );
+            IsExporting = true;
+            ExportProgress = 0;
+            _exportCts = new CancellationTokenSource();
+
+            var progress = new Progress<ExportProgressReport>(report =>
+            {
+                ExportProgress = report.Percentage;
+                StatusText = $"正在导出 ({report.ProcessedCount}/{report.TotalCount}, {report.Percentage:F0}%): {report.CurrentFileName}";
             });
-            StatusText = $"导出完成！已处理 {count} 张。";
+
+            try
+            {
+                var result = await _imageProcessor.ExportBatchAsync(
+                    exportItems,
+                    cropSettings,
+                    outputFolder,
+                    progress,
+                    _exportCts.Token
+                );
+
+                if (result.IsCancelled)
+                {
+                    StatusText = $"导出已中止，已完成 {result.SuccessCount}/{result.TotalCount} 张。";
+                }
+                else if (result.FailedCount > 0)
+                {
+                    StatusText = $"导出完成：{result.SuccessCount} 成功，{result.FailedCount} 失败。";
+                }
+                else
+                {
+                    StatusText = $"导出完成！全部 {result.SuccessCount} 张照片已成功保存至 Clipped_Photos";
+                }
+            }
+            finally
+            {
+                IsExporting = false;
+                _exportCts.Dispose();
+                _exportCts = null;
+            }
         }
 
-        private BitmapSource ConvertToBitmapSource(MagickImage image)
+        private static BitmapSource ConvertToBitmapSource(MagickImage image)
         {
             using var ms = new MemoryStream();
             image.Write(ms, MagickFormat.Bmp);

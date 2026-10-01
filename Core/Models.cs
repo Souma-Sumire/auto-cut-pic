@@ -1,6 +1,4 @@
 using System;
-using System.IO;
-using ImageMagick;
 
 namespace AutoCutPic.Core
 {
@@ -11,8 +9,8 @@ namespace AutoCutPic.Core
         public double HeightCm { get; set; }
         public int Dpi { get; set; } = 300;
 
-        public int PixelWidth => (int)Math.Round((WidthCm / 2.54) * Dpi);
-        public int PixelHeight => (int)Math.Round((HeightCm / 2.54) * Dpi);
+        public int PixelWidth => (int)Math.Round((WidthCm / 2.54) * Dpi, MidpointRounding.AwayFromZero);
+        public int PixelHeight => (int)Math.Round((HeightCm / 2.54) * Dpi, MidpointRounding.AwayFromZero);
 
         public static PhotoSize Inch3 { get; } =
             new()
@@ -54,22 +52,13 @@ namespace AutoCutPic.Core
     public enum CutMode
     {
         Fill, // 裁切填满
-        Fit, // 留白完整
-    }
-
-    public class PhotoItem
-    {
-        public required string FilePath { get; set; }
-        public double OffsetX { get; set; }
-        public double OffsetY { get; set; }
-        public MagickImage? Thumbnail { get; set; }
+        Fit,  // 留白完整
     }
 
     public class CropSettings
     {
         public required PhotoSize TargetSize { get; set; }
         public CutMode Mode { get; set; }
-        public bool IsPortrait { get; set; } // 是否强制竖版
 
         public CropSettings Clone() => (CropSettings)MemberwiseClone();
     }

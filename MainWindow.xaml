@@ -463,22 +463,65 @@
             <DockPanel LastChildFill="True">
                 <!-- 底部批量导出按钮与状态信息 -->
                 <StackPanel DockPanel.Dock="Bottom" Margin="0,15,0,0">
-                    <Button
-                        Height="40"
-                        Background="#0078D4"
-                        Command="{Binding ExportCommand}"
-                        Content="批量开始导出"
-                        Cursor="Hand"
-                        FontWeight="SemiBold"
-                        FontSize="14"
-                        Foreground="White"
-                        BorderThickness="0">
-                        <Button.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="4" />
-                            </Style>
-                        </Button.Resources>
-                    </Button>
+                    <!-- 导出与取消按钮容器 -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Button
+                            Grid.Column="0"
+                            Height="40"
+                            Background="#0078D4"
+                            Command="{Binding ExportCommand}"
+                            Content="批量开始导出"
+                            Cursor="Hand"
+                            FontWeight="SemiBold"
+                            FontSize="14"
+                            Foreground="White"
+                            BorderThickness="0">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="4" />
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+
+                        <Button
+                            Grid.Column="1"
+                            Height="40"
+                            Margin="8,0,0,0"
+                            Padding="14,0"
+                            Background="#D83B01"
+                            Foreground="White"
+                            FontWeight="SemiBold"
+                            FontSize="13"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            Command="{Binding CancelExportCommand}"
+                            Visibility="{Binding IsExporting, Converter={StaticResource BoolToVis}}"
+                            Content="中止">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="4" />
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                    </Grid>
+
+                    <!-- 导出进度指示器 -->
+                    <ProgressBar
+                        Height="4"
+                        Margin="0,8,0,0"
+                        Background="#333333"
+                        Foreground="#0078D4"
+                        BorderThickness="0"
+                        Minimum="0"
+                        Maximum="100"
+                        Value="{Binding ExportProgress}"
+                        Visibility="{Binding IsExporting, Converter={StaticResource BoolToVis}}" />
+
                     <TextBlock
                         Margin="0,8,0,0"
                         Foreground="#888888"
@@ -487,9 +530,10 @@
                         Text="导出位置: 原图目录下的 Clipped_Photos" />
                     <TextBlock
                         Margin="0,6,0,0"
-                        Foreground="#AAAAAA"
+                        Foreground="#CCCCCC"
                         FontSize="12"
                         FontWeight="Medium"
+                        TextWrapping="Wrap"
                         Text="{Binding StatusText}" />
                 </StackPanel>
 

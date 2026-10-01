@@ -8,6 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="AutoCutPic.Tests\**" />
+    <EmbeddedResource Remove="AutoCutPic.Tests\**" />
+    <None Remove="AutoCutPic.Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Magick.NET-Q8-OpenMP-x64" Version="14.17.2" />
   </ItemGroup>
 </Project>

@@ -131,28 +131,28 @@ public partial class MainWindow : Window
             case Key.W:
             case Key.Up:
                 if (isCtrl)
-                    _viewModel.AlignBatch(selectedItems, "top");
+                    _viewModel.AlignBatch(selectedItems, AlignmentDirection.Top);
                 else
                     _viewModel.AdjustOffsetBatch(selectedItems, 0, -step);
                 break;
             case Key.S:
             case Key.Down:
                 if (isCtrl)
-                    _viewModel.AlignBatch(selectedItems, "bottom");
+                    _viewModel.AlignBatch(selectedItems, AlignmentDirection.Bottom);
                 else
                     _viewModel.AdjustOffsetBatch(selectedItems, 0, step);
                 break;
             case Key.A:
             case Key.Left:
                 if (isCtrl)
-                    _viewModel.AlignBatch(selectedItems, "left");
+                    _viewModel.AlignBatch(selectedItems, AlignmentDirection.Left);
                 else
                     _viewModel.AdjustOffsetBatch(selectedItems, -step, 0);
                 break;
             case Key.D:
             case Key.Right:
                 if (isCtrl)
-                    _viewModel.AlignBatch(selectedItems, "right");
+                    _viewModel.AlignBatch(selectedItems, AlignmentDirection.Right);
                 else
                     _viewModel.AdjustOffsetBatch(selectedItems, step, 0);
                 break;

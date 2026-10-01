@@ -1,16 +1,24 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using AutoCutPic.Core.Abstractions;
+using AutoCutPic.Core.Calculators;
 using ImageMagick;
 
 namespace AutoCutPic.Core
 {
-    public static class ImageProcessor
+    public class ImageProcessor : IImageProcessor
     {
-        public static MagickImage LoadImage(string path)
+        public static ImageProcessor Instance { get; } = new();
+
+        public MagickImage LoadImage(string path)
         {
-            var extension = Path.GetExtension(path).ToLower();
+            var extension = Path.GetExtension(path).ToLowerInvariant();
 
             if (extension == ".zip")
             {
@@ -36,7 +44,7 @@ namespace AutoCutPic.Core
             return image;
         }
 
-        public static MagickImage ProcessImage(
+        public MagickImage ProcessImage(
             MagickImage original,
             CropSettings settings,
             double offsetX = 0,
@@ -45,67 +53,131 @@ namespace AutoCutPic.Core
         {
             var result = (MagickImage)original.Clone();
 
-            bool originIsPortrait = original.Height > original.Width;
-            int baseW = Math.Max(settings.TargetSize.PixelWidth, settings.TargetSize.PixelHeight);
-            int baseH = Math.Min(settings.TargetSize.PixelWidth, settings.TargetSize.PixelHeight);
-
-            int targetW = originIsPortrait ? baseH : baseW;
-            int targetH = originIsPortrait ? baseW : baseH;
+            var targetPaper = CropGeometryCalculator.CalculateTargetPaperDimensions(
+                settings.TargetSize,
+                (int)original.Width,
+                (int)original.Height
+            );
 
             if (settings.Mode == CutMode.Fill)
             {
-                double targetAR = (double)targetW / targetH;
-                double photoAR = (double)original.Width / original.Height;
+                var cropRect = CropGeometryCalculator.CalculateFillCrop(
+                    (int)original.Width,
+                    (int)original.Height,
+                    targetPaper,
+                    offsetX,
+                    offsetY
+                );
 
-                int cropX, cropY, cropW, cropH;
-
-                if (photoAR > targetAR)
-                {
-                    cropH = (int)original.Height;
-                    cropW = (int)Math.Round(cropH * targetAR);
-                    int excessW = (int)original.Width - cropW;
-                    cropX = (int)Math.Round((excessW / 2.0) + (offsetX * excessW));
-                    cropY = 0;
-                }
-                else
-                {
-                    cropW = (int)original.Width;
-                    cropH = (int)Math.Round(cropW / targetAR);
-                    int excessH = (int)original.Height - cropH;
-                    cropX = 0;
-                    cropY = (int)Math.Round((excessH / 2.0) + (offsetY * excessH));
-                }
-
-                cropX = Math.Max(0, Math.Min(cropX, (int)original.Width - cropW));
-                cropY = Math.Max(0, Math.Min(cropY, (int)original.Height - cropH));
-
-                result.Crop(new MagickGeometry(cropX, cropY, (uint)cropW, (uint)cropH));
-                result.Resize(new MagickGeometry((uint)targetW, (uint)targetH)
+                result.Crop(new MagickGeometry(cropRect.X, cropRect.Y, (uint)cropRect.Width, (uint)cropRect.Height));
+                result.Resize(new MagickGeometry((uint)targetPaper.Width, (uint)targetPaper.Height)
                 {
                     IgnoreAspectRatio = true
                 });
             }
             else
             {
-                double ratioW = (double)targetW / original.Width;
-                double ratioH = (double)targetH / original.Height;
-                double scale = Math.Min(ratioW, ratioH);
+                var placement = CropGeometryCalculator.CalculateFitPlacement(
+                    (int)original.Width,
+                    (int)original.Height,
+                    targetPaper
+                );
 
                 result.Resize(
                     new MagickGeometry(
-                        (uint)Math.Max(1, Math.Round(original.Width * scale)),
-                        (uint)Math.Max(1, Math.Round(original.Height * scale))
+                        (uint)placement.ScaledWidth,
+                        (uint)placement.ScaledHeight
                     )
                 );
 
                 result.BackgroundColor = MagickColors.White;
-                result.Extent((uint)targetW, (uint)targetH, Gravity.Center);
+                result.Extent((uint)targetPaper.Width, (uint)targetPaper.Height, Gravity.Center);
             }
 
             result.Density = new Density(settings.TargetSize.Dpi, DensityUnit.PixelsPerInch);
             result.Settings.SetDefine(MagickFormat.Jpg, "quality", "95");
 
             return result;
+        }
+
+        public async Task<ExportBatchResult> ExportBatchAsync(
+            IReadOnlyList<PhotoExportItem> items,
+            CropSettings settings,
+            string outputFolder,
+            IProgress<ExportProgressReport>? progress = null,
+            CancellationToken cancellationToken = default
+        )
+        {
+            if (!Directory.Exists(outputFolder))
+            {
+                Directory.CreateDirectory(outputFolder);
+            }
+
+            int processedCount = 0;
+            int successCount = 0;
+            var failures = new ConcurrentBag<ExportFailure>();
+            bool isCancelled = false;
+
+            await Task.Run(() =>
+            {
+                var parallelOptions = new ParallelOptions
+                {
+                    CancellationToken = cancellationToken,
+                    MaxDegreeOfParallelism = Environment.ProcessorCount
+                };
+
+                try
+                {
+                    Parallel.ForEach(items, parallelOptions, item =>
+                    {
+                        parallelOptions.CancellationToken.ThrowIfCancellationRequested();
+
+                        try
+                        {
+                            using var image = LoadImage(item.FilePath);
+                            using var processed = ProcessImage(
+                                image,
+                                settings,
+                                item.OffsetX,
+                                item.OffsetY
+                            );
+
+                            string fileName = Path.GetFileNameWithoutExtension(item.FilePath);
+                            string outPath = Path.Combine(
+                                outputFolder,
+                                $"{fileName}_{settings.TargetSize.Name}.jpg"
+                            );
+                            processed.Write(outPath);
+                            Interlocked.Increment(ref successCount);
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        {
+                            failures.Add(new ExportFailure(item.FilePath, ex.Message));
+                        }
+                        finally
+                        {
+                            int current = Interlocked.Increment(ref processedCount);
+                            progress?.Report(new ExportProgressReport(
+                                current,
+                                items.Count,
+                                Path.GetFileName(item.FilePath)
+                            ));
+                        }
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    isCancelled = true;
+                }
+            }, CancellationToken.None);
+
+            return new ExportBatchResult
+            {
+                TotalCount = items.Count,
+                SuccessCount = successCount,
+                IsCancelled = isCancelled,
+                Failures = failures.ToList()
+            };
         }
     }
 }
