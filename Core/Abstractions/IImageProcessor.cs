@@ -13,7 +13,8 @@ namespace AutoCutPic.Core.Abstractions
         string FilePath,
         double OffsetX,
         double OffsetY,
-        CutMode? Mode = null
+        CutMode? Mode = null,
+        AutoCutPic.Core.Calculators.TargetOrientation? Orientation = null
     );
 
     /// <summary>
@@ -33,7 +34,8 @@ namespace AutoCutPic.Core.Abstractions
             MagickImage original,
             CropSettings settings,
             double offsetX = 0,
-            double offsetY = 0
+            double offsetY = 0,
+            AutoCutPic.Core.Calculators.TargetOrientation? orientation = null
         );
 
         /// <summary>

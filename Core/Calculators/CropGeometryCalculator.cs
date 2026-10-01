@@ -3,27 +3,198 @@ using System;
 namespace AutoCutPic.Core.Calculators
 {
     /// <summary>
+    /// 目标相纸裁切方向
+    /// </summary>
+    public enum TargetOrientation
+    {
+        Landscape, // 横向构图 (宽 >= 高)
+        Portrait   // 纵向构图 (高 > 宽)
+    }
+
+    /// <summary>
     /// 核心照片几何与冲印相纸裁切计算器（无外部依赖纯算法类）
     /// </summary>
     public static class CropGeometryCalculator
     {
         /// <summary>
-        /// 根据照片物理宽高，自适应计算目标冲印相纸像素尺寸（横竖构图对齐）
+        /// 根据照片物理宽高及指定方向，自适应计算目标冲印相纸像素尺寸
         /// </summary>
-        public static PaperDimensions CalculateTargetPaperDimensions(PhotoSize targetSize, int photoWidth, int photoHeight)
+        public static PaperDimensions CalculateTargetPaperDimensions(
+            PhotoSize targetSize,
+            int photoWidth,
+            int photoHeight,
+            TargetOrientation? orientation = null)
         {
-            if (photoWidth <= 0 || photoHeight <= 0)
+            if (photoWidth <= 0 || photoHeight <= 0 || targetSize == null)
             {
-                return new PaperDimensions(targetSize.PixelWidth, targetSize.PixelHeight);
+                return new PaperDimensions(targetSize?.PixelWidth ?? 1800, targetSize?.PixelHeight ?? 1200);
             }
 
             int baseW = Math.Max(targetSize.PixelWidth, targetSize.PixelHeight);
             int baseH = Math.Min(targetSize.PixelWidth, targetSize.PixelHeight);
 
-            bool photoIsPortrait = photoHeight > photoWidth;
-            return photoIsPortrait
+            TargetOrientation effectiveOrientation = orientation ?? (photoHeight > photoWidth ? TargetOrientation.Portrait : TargetOrientation.Landscape);
+
+            return effectiveOrientation == TargetOrientation.Portrait
                 ? new PaperDimensions(baseH, baseW)
                 : new PaperDimensions(baseW, baseH);
+        }
+
+        /// <summary>
+        /// 检测有效内容方向：剔除靠近长边边缘的连续纯黑与纯白矩形条（自动识别手机相册截屏等包含横版照片的竖版图片）
+        /// </summary>
+        public static TargetOrientation DetectEffectiveOrientation(
+            int width,
+            int height,
+            Func<int, int, (byte R, byte G, byte B)> getPixel)
+        {
+            if (width <= 0 || height <= 0 || getPixel == null)
+                return TargetOrientation.Landscape;
+
+            bool isPortrait = height > width;
+
+            static bool IsBorderColor(byte r, byte g, byte b)
+            {
+                bool isBlack = r <= 18 && g <= 18 && b <= 18;
+                bool isWhite = r >= 238 && g >= 238 && b >= 238;
+                return isBlack || isWhite;
+            }
+
+            if (isPortrait)
+            {
+                // 长边为纵向 (H > W)，检查顶部和底部连续纯黑/纯白条 (letterbox)
+                int sampleStepX = Math.Max(1, width / 20);
+                int top = 0;
+                int maxScanH = (int)(height * 0.42);
+
+                for (int y = 0; y < maxScanH; y++)
+                {
+                    int borderCount = 0;
+                    int totalSampled = 0;
+                    for (int x = 0; x < width; x += sampleStepX)
+                    {
+                        var (r, g, b) = getPixel(x, y);
+                        if (IsBorderColor(r, g, b))
+                            borderCount++;
+                        totalSampled++;
+                    }
+
+                    if (totalSampled > 0 && (double)borderCount / totalSampled >= 0.92)
+                        top = y + 1;
+                    else
+                        break;
+                }
+
+                int bottom = height - 1;
+                int minScanBottom = height - 1 - maxScanH;
+                for (int y = height - 1; y >= minScanBottom; y--)
+                {
+                    int borderCount = 0;
+                    int totalSampled = 0;
+                    for (int x = 0; x < width; x += sampleStepX)
+                    {
+                        var (r, g, b) = getPixel(x, y);
+                        if (IsBorderColor(r, g, b))
+                            borderCount++;
+                        totalSampled++;
+                    }
+
+                    if (totalSampled > 0 && (double)borderCount / totalSampled >= 0.92)
+                        bottom = y - 1;
+                    else
+                        break;
+                }
+
+                int effectiveH = Math.Max(1, bottom - top + 1);
+                int effectiveW = width;
+
+                // 若剔除上下两端黑白矩形条后，有效内容宽度大于高度，则判定为横版相纸
+                if (effectiveW > effectiveH)
+                {
+                    return TargetOrientation.Landscape;
+                }
+
+                return TargetOrientation.Portrait;
+            }
+            else
+            {
+                // 长边为横向 (W >= H)，检查左右两侧连续纯黑/纯白条 (pillarbox)
+                int sampleStepY = Math.Max(1, height / 20);
+                int left = 0;
+                int maxScanW = (int)(width * 0.42);
+
+                for (int x = 0; x < maxScanW; x++)
+                {
+                    int borderCount = 0;
+                    int totalSampled = 0;
+                    for (int y = 0; y < height; y += sampleStepY)
+                    {
+                        var (r, g, b) = getPixel(x, y);
+                        if (IsBorderColor(r, g, b))
+                            borderCount++;
+                        totalSampled++;
+                    }
+
+                    if (totalSampled > 0 && (double)borderCount / totalSampled >= 0.92)
+                        left = x + 1;
+                    else
+                        break;
+                }
+
+                int right = width - 1;
+                int minScanRight = width - 1 - maxScanW;
+                for (int x = width - 1; x >= minScanRight; x--)
+                {
+                    int borderCount = 0;
+                    int totalSampled = 0;
+                    for (int y = 0; y < height; y += sampleStepY)
+                    {
+                        var (r, g, b) = getPixel(x, y);
+                        if (IsBorderColor(r, g, b))
+                            borderCount++;
+                        totalSampled++;
+                    }
+
+                    if (totalSampled > 0 && (double)borderCount / totalSampled >= 0.92)
+                        right = x - 1;
+                    else
+                        break;
+                }
+
+                int effectiveW = Math.Max(1, right - left + 1);
+                int effectiveH = height;
+
+                // 若剔除左右两边黑白矩形条后，有效内容高度大于宽度，则判定为纵向相纸
+                if (effectiveH > effectiveW)
+                {
+                    return TargetOrientation.Portrait;
+                }
+
+                return TargetOrientation.Landscape;
+            }
+        }
+
+        /// <summary>
+        /// 检测有效内容方向（基于 RGBA 字节数组）
+        /// </summary>
+        public static TargetOrientation DetectEffectiveOrientation(
+            byte[] rgbOrRgbaBytes,
+            int width,
+            int height,
+            int bytesPerPixel = 4)
+        {
+            if (rgbOrRgbaBytes == null || width <= 0 || height <= 0)
+                return TargetOrientation.Landscape;
+
+            return DetectEffectiveOrientation(width, height, (x, y) =>
+            {
+                int index = (y * width + x) * bytesPerPixel;
+                if (index + 2 < rgbOrRgbaBytes.Length)
+                {
+                    return (rgbOrRgbaBytes[index], rgbOrRgbaBytes[index + 1], rgbOrRgbaBytes[index + 2]);
+                }
+                return ((byte)128, (byte)128, (byte)128);
+            });
         }
 
         /// <summary>
@@ -130,14 +301,15 @@ namespace AutoCutPic.Core.Calculators
             PhotoSize targetSize,
             CutMode mode,
             double offsetX = 0,
-            double offsetY = 0)
+            double offsetY = 0,
+            TargetOrientation? orientation = null)
         {
             if (cardBoxWidth <= 10 || cardBoxHeight <= 10 || photoWidth <= 0 || photoHeight <= 0 || targetSize == null)
             {
                 return new BatchCardLayout(cardBoxWidth, cardBoxHeight, cardBoxWidth, cardBoxHeight, 0, 0, false);
             }
 
-            var targetPaper = CalculateTargetPaperDimensions(targetSize, photoWidth, photoHeight);
+            var targetPaper = CalculateTargetPaperDimensions(targetSize, photoWidth, photoHeight, orientation);
             double targetAR = targetPaper.AspectRatio;
             double photoAR = (double)photoWidth / photoHeight;
 
@@ -188,6 +360,7 @@ namespace AutoCutPic.Core.Calculators
 
         /// <summary>
         /// 计算批量预览网格卡片中完整原图显示与冲印相纸裁切取景框的几何位置
+        /// （基于自身包围盒的相对坐标，确保在任何长宽比下严格居中，绝不歪斜）
         /// </summary>
         public static BatchCardCropLayout CalculateBatchCardCropLayout(
             double boxWidth,
@@ -197,56 +370,53 @@ namespace AutoCutPic.Core.Calculators
             PhotoSize targetSize,
             CutMode mode,
             double offsetX = 0,
-            double offsetY = 0)
+            double offsetY = 0,
+            TargetOrientation? orientation = null)
         {
             if (boxWidth <= 10 || boxHeight <= 10 || photoWidth <= 0 || photoHeight <= 0 || targetSize == null)
             {
                 return new BatchCardCropLayout(boxWidth, boxHeight, boxWidth, boxHeight, 0, 0, 0, 0, boxWidth, boxHeight, false);
             }
 
-            var targetPaper = CalculateTargetPaperDimensions(targetSize, photoWidth, photoHeight);
+            var targetPaper = CalculateTargetPaperDimensions(targetSize, photoWidth, photoHeight, orientation);
 
             if (mode == CutMode.Fit)
             {
-                // Fit 留白模式：相纸在视口内居中自适应，照片在相纸内部居中留白
+                // Fit 留白模式：相纸在视口内自适应，照片在相纸内部居中留白
                 double paperScale = Math.Min(boxWidth / targetPaper.Width, boxHeight / targetPaper.Height);
                 double paperW = Math.Max(10, Math.Round(targetPaper.Width * paperScale));
                 double paperH = Math.Max(10, Math.Round(targetPaper.Height * paperScale));
-                double paperLeft = Math.Round((boxWidth - paperW) / 2.0);
-                double paperTop = Math.Round((boxHeight - paperH) / 2.0);
 
                 double imgScale = Math.Min(paperW / photoWidth, paperH / photoHeight);
                 double imgW = Math.Max(5, Math.Round(photoWidth * imgScale));
                 double imgH = Math.Max(5, Math.Round(photoHeight * imgScale));
-                double imgLeft = paperLeft + Math.Round((paperW - imgW) / 2.0);
-                double imgTop = paperTop + Math.Round((paperH - imgH) / 2.0);
+                double imgLeft = Math.Round((paperW - imgW) / 2.0);
+                double imgTop = Math.Round((paperH - imgH) / 2.0);
 
                 return new BatchCardCropLayout(
-                    boxWidth, boxHeight,
+                    paperW, paperH,
                     imgW, imgH, imgLeft, imgTop,
-                    paperLeft, paperTop, paperW, paperH,
+                    0, 0, paperW, paperH,
                     true
                 );
             }
             else
             {
-                // Fill 填充模式：原图完整展示在 box 内部，在其上清晰高亮标出裁切框与外部被裁暗区
+                // Fill 填充模式：原图完整展示在 box 内部，在其上精确标出裁切框
                 double scale = Math.Min(boxWidth / photoWidth, boxHeight / photoHeight);
                 double imgW = Math.Max(10, Math.Round(photoWidth * scale));
                 double imgH = Math.Max(10, Math.Round(photoHeight * scale));
-                double imgLeft = Math.Round((boxWidth - imgW) / 2.0);
-                double imgTop = Math.Round((boxHeight - imgH) / 2.0);
 
                 var cropRect = CalculateFillCrop(photoWidth, photoHeight, targetPaper, offsetX, offsetY);
 
                 double cropW = Math.Max(5, Math.Round(cropRect.Width * scale));
                 double cropH = Math.Max(5, Math.Round(cropRect.Height * scale));
-                double cropLeft = imgLeft + Math.Round(cropRect.X * scale);
-                double cropTop = imgTop + Math.Round(cropRect.Y * scale);
+                double cropLeft = Math.Round(cropRect.X * scale);
+                double cropTop = Math.Round(cropRect.Y * scale);
 
                 return new BatchCardCropLayout(
-                    boxWidth, boxHeight,
-                    imgW, imgH, imgLeft, imgTop,
+                    imgW, imgH,
+                    imgW, imgH, 0, 0,
                     cropLeft, cropTop, cropW, cropH,
                     false
                 );
@@ -260,22 +430,45 @@ namespace AutoCutPic.Core.Calculators
             int photoWidth,
             int photoHeight,
             PhotoSize targetSize,
+            TargetOrientation? orientation = null,
             double tolerance = 0.015)
         {
             if (photoWidth <= 0 || photoHeight <= 0 || targetSize == null)
                 return false;
 
-            var paper = CalculateTargetPaperDimensions(targetSize, photoWidth, photoHeight);
-            double targetAR = (double)paper.Width / paper.Height;
-            double photoAR = (double)photoWidth / photoHeight;
-
-            double diff = Math.Abs(photoAR - targetAR) / targetAR;
-            return diff <= tolerance;
+            var targetPaper = CalculateTargetPaperDimensions(targetSize, photoWidth, photoHeight, orientation);
+            double lossRatio = CalculateCropLossRatio(photoWidth, photoHeight, targetPaper);
+            return lossRatio <= tolerance;
         }
 
         /// <summary>
         /// 计算在填充（Fill）模式下，原图被裁剪抛弃的面积占原图总面积的比例
         /// </summary>
+        public static double CalculateCropLossRatio(
+            int photoWidth,
+            int photoHeight,
+            PaperDimensions targetPaper)
+        {
+            if (photoWidth <= 0 || photoHeight <= 0 || targetPaper.Width <= 0 || targetPaper.Height <= 0)
+                return 0.0;
+
+            double targetAR = (double)targetPaper.Width / targetPaper.Height;
+            double photoAR = (double)photoWidth / photoHeight;
+
+            if (photoAR > targetAR)
+            {
+                // 横向裁剪：宽度超出，裁剪后实际保留宽度为 photoHeight * targetAR
+                double visibleW = photoHeight * targetAR;
+                return Math.Max(0.0, 1.0 - (visibleW / photoWidth));
+            }
+            else
+            {
+                // 纵向裁剪：高度超出，裁剪后实际保留高度为 photoWidth / targetAR
+                double visibleH = photoWidth / targetAR;
+                return Math.Max(0.0, 1.0 - (visibleH / photoHeight));
+            }
+        }
+
         public static double CalculateCropLossRatio(
             int photoWidth,
             int photoHeight,
@@ -285,21 +478,7 @@ namespace AutoCutPic.Core.Calculators
                 return 0.0;
 
             var paper = CalculateTargetPaperDimensions(targetSize, photoWidth, photoHeight);
-            double targetAR = (double)paper.Width / paper.Height;
-            double photoAR = (double)photoWidth / photoHeight;
-
-            if (photoAR > targetAR)
-            {
-                // 横向裁剪：宽度超出，裁剪后实际可见宽度为 photoHeight * targetAR
-                double visibleW = photoHeight * targetAR;
-                return Math.Max(0.0, 1.0 - (visibleW / photoWidth));
-            }
-            else
-            {
-                // 纵向裁剪：高度超出，裁剪后实际可见高度为 photoWidth / targetAR
-                double visibleH = photoWidth / targetAR;
-                return Math.Max(0.0, 1.0 - (visibleH / photoHeight));
-            }
+            return CalculateCropLossRatio(photoWidth, photoHeight, paper);
         }
     }
 }

@@ -139,5 +139,53 @@ namespace AutoCutPic.Tests
             Assert.Equal(CutMode.Fit, vm.SelectedMode);
             Assert.Equal(CutMode.Fit, p.Mode);
         }
+
+        [Fact]
+        public void ToggleOrientation_ShouldToggleLandscapeAndPortrait()
+        {
+            var p = new PhotoViewModel("test.jpg")
+            {
+                OriginalWidth = 1000,
+                OriginalHeight = 2000,
+                Orientation = AutoCutPic.Core.Calculators.TargetOrientation.Portrait
+            };
+            var vm = new MainViewModel();
+            vm.Photos.Add(p);
+            vm.SelectedPhoto = p;
+
+            // 单张通过快捷命令或方法翻转
+            vm.ToggleOrientation();
+            Assert.Equal(AutoCutPic.Core.Calculators.TargetOrientation.Landscape, p.Orientation);
+
+            vm.ToggleOrientation();
+            Assert.Equal(AutoCutPic.Core.Calculators.TargetOrientation.Portrait, p.Orientation);
+        }
+
+        [Fact]
+        public void MatchedFilterMode_RadioSelection_ShouldMutuallyExclude()
+        {
+            var vm = new MainViewModel();
+
+            // 默认淡化模式
+            Assert.True(vm.DimMatchedPhotos);
+            Assert.False(vm.HideMatchedPhotos);
+            Assert.False(vm.ShowAllPhotos);
+            Assert.Equal(MainViewModel.PhotoFilterMode.Dim, vm.MatchedFilterMode);
+
+            // 切换为隐藏
+            vm.HideMatchedPhotos = true;
+            Assert.False(vm.DimMatchedPhotos);
+            Assert.True(vm.HideMatchedPhotos);
+            Assert.False(vm.ShowAllPhotos);
+            Assert.Equal(MainViewModel.PhotoFilterMode.Hide, vm.MatchedFilterMode);
+
+            // 切换为全部显示
+            vm.ShowAllPhotos = true;
+            Assert.False(vm.DimMatchedPhotos);
+            Assert.False(vm.HideMatchedPhotos);
+            Assert.True(vm.ShowAllPhotos);
+            Assert.Equal(MainViewModel.PhotoFilterMode.Show, vm.MatchedFilterMode);
+        }
     }
 }
+

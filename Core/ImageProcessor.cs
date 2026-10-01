@@ -48,7 +48,8 @@ namespace AutoCutPic.Core
             MagickImage original,
             CropSettings settings,
             double offsetX = 0,
-            double offsetY = 0
+            double offsetY = 0,
+            TargetOrientation? orientation = null
         )
         {
             var result = (MagickImage)original.Clone();
@@ -56,7 +57,8 @@ namespace AutoCutPic.Core
             var targetPaper = CropGeometryCalculator.CalculateTargetPaperDimensions(
                 settings.TargetSize,
                 (int)original.Width,
-                (int)original.Height
+                (int)original.Height,
+                orientation
             );
 
             if (settings.Mode == CutMode.Fill)
@@ -141,7 +143,8 @@ namespace AutoCutPic.Core
                                 image,
                                 itemSettings,
                                 item.OffsetX,
-                                item.OffsetY
+                                item.OffsetY,
+                                item.Orientation
                             );
 
                             string fileName = Path.GetFileNameWithoutExtension(item.FilePath);

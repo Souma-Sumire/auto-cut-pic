@@ -12,6 +12,7 @@ using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using AutoCutPic.Core;
 using AutoCutPic.Core.Abstractions;
+using AutoCutPic.Core.Calculators;
 using ImageMagick;
 
 namespace AutoCutPic.ViewModels
@@ -121,6 +122,20 @@ namespace AutoCutPic.ViewModels
             }
         }
 
+        private TargetOrientation _orientation = TargetOrientation.Landscape;
+        public TargetOrientation Orientation
+        {
+            get => _orientation;
+            set
+            {
+                if (_orientation != value)
+                {
+                    _orientation = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public PhotoViewModel(string path)
         {
             FilePath = path;
@@ -199,17 +214,63 @@ namespace AutoCutPic.ViewModels
             }
         }
 
-        private bool _dimMatchedPhotos = true;
-        public bool DimMatchedPhotos
+        public enum PhotoFilterMode
         {
-            get => _dimMatchedPhotos;
+            Show, // 全部显示
+            Dim,  // 淡化免修 (默认)
+            Hide  // 隐藏免修
+        }
+
+        private PhotoFilterMode _matchedFilterMode = PhotoFilterMode.Dim;
+        public PhotoFilterMode MatchedFilterMode
+        {
+            get => _matchedFilterMode;
             set
             {
-                if (_dimMatchedPhotos != value)
+                if (_matchedFilterMode != value)
                 {
-                    _dimMatchedPhotos = value;
+                    _matchedFilterMode = value;
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(DimMatchedPhotos));
+                    OnPropertyChanged(nameof(HideMatchedPhotos));
+                    OnPropertyChanged(nameof(ShowAllPhotos));
+
+                    if (_matchedFilterMode == PhotoFilterMode.Hide && SelectedPhoto?.IsAspectMatched == true)
+                    {
+                        var firstNeed = Photos.FirstOrDefault(p => !p.IsAspectMatched);
+                        if (firstNeed != null)
+                        {
+                            SelectedPhoto = firstNeed;
+                        }
+                    }
                 }
+            }
+        }
+
+        public bool DimMatchedPhotos
+        {
+            get => _matchedFilterMode == PhotoFilterMode.Dim;
+            set
+            {
+                if (value) MatchedFilterMode = PhotoFilterMode.Dim;
+            }
+        }
+
+        public bool HideMatchedPhotos
+        {
+            get => _matchedFilterMode == PhotoFilterMode.Hide;
+            set
+            {
+                if (value) MatchedFilterMode = PhotoFilterMode.Hide;
+            }
+        }
+
+        public bool ShowAllPhotos
+        {
+            get => _matchedFilterMode == PhotoFilterMode.Show;
+            set
+            {
+                if (value) MatchedFilterMode = PhotoFilterMode.Show;
             }
         }
 
@@ -224,7 +285,8 @@ namespace AutoCutPic.ViewModels
                 photo.IsAspectMatched = AutoCutPic.Core.Calculators.CropGeometryCalculator.IsAspectMatched(
                     photo.OriginalWidth,
                     photo.OriginalHeight,
-                    SelectedSize);
+                    SelectedSize,
+                    photo.Orientation);
             }
             OnPropertyChanged(nameof(AspectMatchedCount));
             OnPropertyChanged(nameof(NeedAdjustCount));
@@ -421,14 +483,52 @@ namespace AutoCutPic.ViewModels
         public ICommand SwitchViewModeCommand { get; }
         public ICommand ToggleModeCommand { get; }
         public ICommand SetModeCommand { get; }
+        public ICommand ToggleOrientationCommand { get; }
 
         public void ToggleViewMode() =>
             CurrentViewMode = CurrentViewMode == ViewMode.Single ? ViewMode.Batch : ViewMode.Single;
+
+        public void ToggleOrientation(System.Collections.IList? targetPhotos = null)
+        {
+            var list = targetPhotos?.OfType<PhotoViewModel>().ToList();
+            if (list == null || list.Count == 0)
+            {
+                if (SelectedPhoto != null)
+                    list = new List<PhotoViewModel> { SelectedPhoto };
+            }
+
+            if (list == null || list.Count == 0)
+                return;
+
+            foreach (var photo in list)
+            {
+                photo.Orientation = photo.Orientation == TargetOrientation.Landscape
+                    ? TargetOrientation.Portrait
+                    : TargetOrientation.Landscape;
+
+                photo.IsAspectMatched = AutoCutPic.Core.Calculators.CropGeometryCalculator.IsAspectMatched(
+                    photo.OriginalWidth,
+                    photo.OriginalHeight,
+                    SelectedSize,
+                    photo.Orientation);
+            }
+
+            OnPropertyChanged(nameof(AspectMatchedCount));
+            OnPropertyChanged(nameof(NeedAdjustCount));
+        }
 
         public MainViewModel(IImageProcessor? imageProcessor = null)
         {
             _imageProcessor = imageProcessor ?? ImageProcessor.Instance;
             _selectedSize = Sizes.FirstOrDefault(s => s.Name == "6寸") ?? PhotoSize.Inch6;
+
+            ToggleOrientationCommand = new RelayCommand(p =>
+            {
+                if (p is System.Collections.IList list)
+                    ToggleOrientation(list);
+                else
+                    ToggleOrientation();
+            });
 
             ToggleModeCommand = new RelayCommand(_ =>
             {
@@ -537,17 +637,40 @@ namespace AutoCutPic.ViewModels
                 int origW = (int)image.Width;
                 int origH = (int)image.Height;
 
+                // 检测自动剪裁方向：剔除靠近长边边缘的纯黑和纯白矩形条（自动识别手机相册截屏）
+                var detectedOrientation = DetectEffectiveOrientation(image, origW, origH);
+
                 image.Resize(new MagickGeometry(300, 300));
                 var thumb = ConvertToBitmapSource(image);
 
+                photo.Orientation = detectedOrientation;
                 photo.OriginalWidth = origW;
                 photo.OriginalHeight = origH;
                 photo.Thumbnail = thumb;
-                photo.IsAspectMatched = AutoCutPic.Core.Calculators.CropGeometryCalculator.IsAspectMatched(origW, origH, _selectedSize);
+                photo.IsAspectMatched = AutoCutPic.Core.Calculators.CropGeometryCalculator.IsAspectMatched(
+                    origW, origH, _selectedSize, detectedOrientation);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[MainViewModel] 缩略图生成失败: {photo.FilePath}, 原因: {ex.Message}");
+            }
+        }
+
+        private static TargetOrientation DetectEffectiveOrientation(MagickImage image, int origW, int origH)
+        {
+            try
+            {
+                using var sample = (MagickImage)image.Clone();
+                if (sample.Width > 160 || sample.Height > 160)
+                {
+                    sample.Resize(new MagickGeometry(160, 160));
+                }
+                var bytes = sample.ToByteArray(MagickFormat.Rgb);
+                return AutoCutPic.Core.Calculators.CropGeometryCalculator.DetectEffectiveOrientation(bytes, (int)sample.Width, (int)sample.Height, 3);
+            }
+            catch
+            {
+                return origH > origW ? TargetOrientation.Portrait : TargetOrientation.Landscape;
             }
         }
 
@@ -601,7 +724,7 @@ namespace AutoCutPic.ViewModels
             string outputFolder = Path.Combine(firstFileDir, "Clipped_Photos");
 
             var exportItems = Photos
-                .Select(p => new PhotoExportItem(p.FilePath, p.OffsetX, p.OffsetY, p.Mode))
+                .Select(p => new PhotoExportItem(p.FilePath, p.OffsetX, p.OffsetY, p.Mode, p.Orientation))
                 .ToList();
 
             var cropSettings = new CropSettings

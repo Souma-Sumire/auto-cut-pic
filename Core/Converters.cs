@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
+using AutoCutPic.Core.Calculators;
 
 namespace AutoCutPic.Core
 {
@@ -153,13 +154,14 @@ namespace AutoCutPic.Core
             double offsetX,
             double offsetY,
             PhotoSize targetSize,
-            CutMode mode
+            CutMode mode,
+            TargetOrientation? orientation = null
         )
         {
             if (viewportW <= 40 || viewportH <= 40 || origW <= 0 || origH <= 0 || targetSize == null)
                 return default;
 
-            var targetPaper = AutoCutPic.Core.Calculators.CropGeometryCalculator.CalculateTargetPaperDimensions(targetSize, origW, origH);
+            var targetPaper = AutoCutPic.Core.Calculators.CropGeometryCalculator.CalculateTargetPaperDimensions(targetSize, origW, origH, orientation);
             int targetW = targetPaper.Width;
             int targetH = targetPaper.Height;
             double targetAR = targetPaper.AspectRatio;
@@ -260,7 +262,17 @@ namespace AutoCutPic.Core
             PhotoSize size = values[4] is PhotoSize ps ? ps : PhotoSize.Inch6;
             CutMode mode = values[5] is CutMode m ? m : CutMode.Fill;
 
-            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, 0, 0, size, mode);
+            TargetOrientation? orientation = null;
+            for (int i = 6; i < values.Length; i++)
+            {
+                if (values[i] is TargetOrientation to)
+                {
+                    orientation = to;
+                    break;
+                }
+            }
+
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, 0, 0, size, mode, orientation);
             return parameter?.ToString() == "Width" ? Math.Max(10, geo.BoardWidth) : Math.Max(10, geo.BoardHeight);
         }
 
@@ -288,7 +300,17 @@ namespace AutoCutPic.Core
             PhotoSize size = values[6] is PhotoSize ps ? ps : PhotoSize.Inch6;
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
-            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
+            TargetOrientation? orientation = null;
+            for (int i = 8; i < values.Length; i++)
+            {
+                if (values[i] is TargetOrientation to)
+                {
+                    orientation = to;
+                    break;
+                }
+            }
+
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation);
             return parameter?.ToString() == "Width" ? Math.Max(10, geo.PaperWidth) : Math.Max(10, geo.PaperHeight);
         }
 
@@ -316,7 +338,17 @@ namespace AutoCutPic.Core
             PhotoSize size = values[6] is PhotoSize ps ? ps : PhotoSize.Inch6;
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
-            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
+            TargetOrientation? orientation = null;
+            for (int i = 8; i < values.Length; i++)
+            {
+                if (values[i] is TargetOrientation to)
+                {
+                    orientation = to;
+                    break;
+                }
+            }
+
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation);
             return new Thickness(geo.PaperX, geo.PaperY, 0, 0);
         }
 
@@ -344,7 +376,17 @@ namespace AutoCutPic.Core
             PhotoSize size = values[6] is PhotoSize ps ? ps : PhotoSize.Inch6;
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
-            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
+            TargetOrientation? orientation = null;
+            for (int i = 8; i < values.Length; i++)
+            {
+                if (values[i] is TargetOrientation to)
+                {
+                    orientation = to;
+                    break;
+                }
+            }
+
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation);
             return parameter?.ToString() == "Width" ? Math.Max(10, geo.ImgWidth) : Math.Max(10, geo.ImgHeight);
         }
 
@@ -372,7 +414,17 @@ namespace AutoCutPic.Core
             PhotoSize size = values[6] is PhotoSize ps ? ps : PhotoSize.Inch6;
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
-            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
+            TargetOrientation? orientation = null;
+            for (int i = 8; i < values.Length; i++)
+            {
+                if (values[i] is TargetOrientation to)
+                {
+                    orientation = to;
+                    break;
+                }
+            }
+
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation);
             return new Thickness(geo.ImgX, geo.ImgY, 0, 0);
         }
 
@@ -400,10 +452,20 @@ namespace AutoCutPic.Core
             PhotoSize size = values[6] is PhotoSize ps ? ps : PhotoSize.Inch6;
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
+            TargetOrientation? orientation = null;
+            for (int i = 8; i < values.Length; i++)
+            {
+                if (values[i] is TargetOrientation to)
+                {
+                    orientation = to;
+                    break;
+                }
+            }
+
             if (mode == CutMode.Fit)
                 return Geometry.Empty; // 留白模式下遮罩为空，完整呈现相纸与纯白留白边
 
-            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation);
             if (geo.BoardWidth <= 0 || geo.BoardHeight <= 0)
                 return Geometry.Empty;
 
@@ -632,8 +694,21 @@ namespace AutoCutPic.Core
             double offsetX = values[4] is double ox ? ox : 0.0;
             double offsetY = values[5] is double oy ? oy : 0.0;
 
-            double boxW = 186.0;
-            double boxH = 124.0;
+            TargetOrientation? orientation = null;
+            if (values.Length > 6)
+            {
+                for (int i = 6; i < values.Length; i++)
+                {
+                    if (values[i] is TargetOrientation to)
+                    {
+                        orientation = to;
+                        break;
+                    }
+                }
+            }
+
+            double boxW = 168.0;
+            double boxH = 112.0;
 
             if (values.Length > 7 && values[6] is double bw && bw > 10 && values[7] is double bh && bh > 10)
             {
@@ -652,12 +727,15 @@ namespace AutoCutPic.Core
                 size,
                 mode,
                 offsetX,
-                offsetY
+                offsetY,
+                orientation
             );
 
             string param = parameter?.ToString() ?? "";
             return param switch
             {
+                "ContainerWidth" => layout.BoxWidth,
+                "ContainerHeight" => layout.BoxHeight,
                 "ImageWidth" => layout.ImageWidth,
                 "ImageHeight" => layout.ImageHeight,
                 "ImageMargin" => new Thickness(layout.ImageLeft, layout.ImageTop, 0, 0),
@@ -711,6 +789,21 @@ namespace AutoCutPic.Core
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
     }
 
+    public class OrientationToDisplayConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is TargetOrientation o)
+            {
+                return o == TargetOrientation.Landscape ? "横向相纸" : "纵向相纸";
+            }
+            return "横向相纸";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+            throw new NotImplementedException();
+    }
+
     /// <summary>
     /// 当开启免修淡化且照片为同比例时，返回 0.38 不透明度（类似 Windows 剪切淡化视觉），否则返回 1.0
     /// </summary>
@@ -725,6 +818,26 @@ namespace AutoCutPic.Core
             bool dimEnabled = values[1] is bool d && d;
 
             return (isMatched && dimEnabled) ? 0.38 : 1.0;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) =>
+            throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// 当开启免修隐藏且照片为同比例时，返回 Collapsed，否则返回 Visible
+    /// </summary>
+    public class HideMatchedVisibilityConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (values == null || values.Length < 2)
+                return Visibility.Visible;
+
+            bool isMatched = values[0] is bool m && m;
+            bool hideEnabled = values[1] is bool h && h;
+
+            return (isMatched && hideEnabled) ? Visibility.Collapsed : Visibility.Visible;
         }
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) =>

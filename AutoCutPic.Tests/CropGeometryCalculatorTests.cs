@@ -317,6 +317,85 @@ namespace AutoCutPic.Tests
             double lossRatio = CropGeometryCalculator.CalculateCropLossRatio(4000, 3000, PhotoSize.Inch6);
             Assert.True(lossRatio > 0.05); // 损失超过 5%
         }
+
+        [Fact]
+        public void CalculateTargetPaperDimensions_ExplicitOrientation_ShouldRespectSetting()
+        {
+            var size = PhotoSize.Inch6; // 宽 1795, 高 1205
+            int landscapeW = Math.Max(size.PixelWidth, size.PixelHeight);
+            int landscapeH = Math.Min(size.PixelWidth, size.PixelHeight);
+
+            // 针对原本为竖向的图片 (1000 x 2000)，若显式指定 TargetOrientation.Landscape，相纸应为横向
+            var paperLandscape = CropGeometryCalculator.CalculateTargetPaperDimensions(size, 1000, 2000, TargetOrientation.Landscape);
+            Assert.Equal(landscapeW, paperLandscape.Width);
+            Assert.Equal(landscapeH, paperLandscape.Height);
+
+            // 针对原本为横向的图片 (2000 x 1000)，若显式指定 TargetOrientation.Portrait，相纸应为纵向
+            var paperPortrait = CropGeometryCalculator.CalculateTargetPaperDimensions(size, 2000, 1000, TargetOrientation.Portrait);
+            Assert.Equal(landscapeH, paperPortrait.Width);
+            Assert.Equal(landscapeW, paperPortrait.Height);
+        }
+
+        [Fact]
+        public void DetectEffectiveOrientation_ScreenshotWithBlackBars_ShouldDetectLandscapeContent()
+        {
+            // 模拟手机竖屏截屏：总尺寸 100 x 200 (长宽比 1:2 纵向)
+            // 上下各 60 行是纯黑黑边 (y: 0~59 与 140~199)
+            // 中间 y: 60~139 为横版图片区域 (高度 80，宽度 100，宽高比 100/80 = 1.25 > 1 横向)
+            int width = 100;
+            int height = 200;
+
+            var orientation = CropGeometryCalculator.DetectEffectiveOrientation(width, height, (x, y) =>
+            {
+                if (y < 60 || y >= 140)
+                {
+                    // 纯黑黑边
+                    return ((byte)0, (byte)0, (byte)0);
+                }
+                // 中间有效彩色内容
+                return ((byte)120, (byte)150, (byte)200);
+            });
+
+            Assert.Equal(TargetOrientation.Landscape, orientation);
+        }
+
+        [Fact]
+        public void DetectEffectiveOrientation_ScreenshotWithWhiteBars_ShouldDetectLandscapeContent()
+        {
+            // 模拟手机竖屏截屏：上下各 50 行为纯白边框 (255, 255, 255)
+            // 中间 y: 50~149 为横版有效内容 (100 x 100 为正方形或 120 x 80 横版)
+            int width = 120;
+            int height = 200;
+
+            var orientation = CropGeometryCalculator.DetectEffectiveOrientation(width, height, (x, y) =>
+            {
+                if (y < 60 || y >= 140)
+                {
+                    // 纯白边
+                    return ((byte)255, (byte)255, (byte)255);
+                }
+                return ((byte)100, (byte)100, (byte)100);
+            });
+
+            Assert.Equal(TargetOrientation.Landscape, orientation);
+        }
+
+        [Fact]
+        public void DetectEffectiveOrientation_NormalPortraitPhoto_ShouldReturnPortrait()
+        {
+            // 普通正常竖版照片 (100 x 200)，无黑白长边矩形边框
+            int width = 100;
+            int height = 200;
+
+            var orientation = CropGeometryCalculator.DetectEffectiveOrientation(width, height, (x, y) =>
+            {
+                // 普通风景/人像颜色
+                return ((byte)128, (byte)128, (byte)128);
+            });
+
+            Assert.Equal(TargetOrientation.Portrait, orientation);
+        }
     }
 }
+
 

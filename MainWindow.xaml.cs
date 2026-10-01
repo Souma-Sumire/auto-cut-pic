@@ -283,6 +283,11 @@ public partial class MainWindow : Window
                 _viewModel.SetModeBatch(selectedItems, targetMode);
                 e.Handled = true;
                 break;
+
+            case Key.X:
+                _viewModel.ToggleOrientation(selectedItems);
+                e.Handled = true;
+                break;
         }
     }
 
@@ -294,9 +299,9 @@ public partial class MainWindow : Window
         int currentIndex = _viewModel.SelectedPhoto != null ? _viewModel.Photos.IndexOf(_viewModel.SelectedPhoto) : 0;
         int step = direction > 0 ? 1 : -1;
 
-        if (_viewModel.DimMatchedPhotos && _viewModel.Photos.Any(p => !p.IsAspectMatched))
+        if (_viewModel.MatchedFilterMode != MainViewModel.PhotoFilterMode.Show && _viewModel.Photos.Any(p => !p.IsAspectMatched))
         {
-            // 当开启淡化跳过开关时，向目标方向搜寻下一个未匹配同比例（需要裁切调整）的照片
+            // 当开启淡化或隐藏跳过开关时，向目标方向搜寻下一个未匹配同比例（需要裁切调整）的照片
             int count = _viewModel.Photos.Count;
             int targetIndex = currentIndex;
             for (int i = 1; i <= count; i++)
