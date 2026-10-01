@@ -22,6 +22,15 @@ public partial class MainWindow : Window
     private Point _dragStartPoint;
     private double _dragStartOffsetX;
     private double _dragStartOffsetY;
+    private double _dragStartCropScale = 1.0;
+    private double _dragStartPaperX;
+    private double _dragStartPaperY;
+    private double _dragStartPaperW;
+    private double _dragStartPaperH;
+    private double _dragStartImgW;
+    private double _dragStartImgH;
+    private double _dragStartBasePaperW;
+    private double _dragStartBasePaperH;
     private string _activeHandleTag = "All";
 
     // 鼠标中键自动平滑滚动系统 (类似 Windows 资源管理器)
@@ -66,11 +75,52 @@ public partial class MainWindow : Window
             if (_viewModel.SelectedMode == CutMode.Fit)
                 return;
 
+            var host = (FrameworkElement)FindName("MainViewportHost");
+            if (host == null || host.ActualWidth <= 40 || host.ActualHeight <= 40)
+                return;
+
+            var photo = _viewModel.SelectedPhoto;
+            var geo = PsWorkbenchMath.Calculate(
+                host.ActualWidth,
+                host.ActualHeight,
+                photo.OriginalWidth > 0 ? photo.OriginalWidth : 1,
+                photo.OriginalHeight > 0 ? photo.OriginalHeight : 1,
+                photo.OffsetX,
+                photo.OffsetY,
+                _viewModel.SelectedSize,
+                _viewModel.SelectedMode,
+                photo.Orientation,
+                photo.CropScale
+            );
+
+            var geoBase = PsWorkbenchMath.Calculate(
+                host.ActualWidth,
+                host.ActualHeight,
+                photo.OriginalWidth > 0 ? photo.OriginalWidth : 1,
+                photo.OriginalHeight > 0 ? photo.OriginalHeight : 1,
+                0,
+                0,
+                _viewModel.SelectedSize,
+                _viewModel.SelectedMode,
+                photo.Orientation,
+                1.0
+            );
+
             _isDragging = true;
             _activeHandleTag = (sender as FrameworkElement)?.Tag?.ToString() ?? "All";
             _dragStartPoint = e.GetPosition(this);
-            _dragStartOffsetX = _viewModel.SelectedPhoto.OffsetX;
-            _dragStartOffsetY = _viewModel.SelectedPhoto.OffsetY;
+            _dragStartOffsetX = photo.OffsetX;
+            _dragStartOffsetY = photo.OffsetY;
+            _dragStartCropScale = photo.CropScale;
+            _dragStartPaperX = geo.PaperX;
+            _dragStartPaperY = geo.PaperY;
+            _dragStartPaperW = geo.PaperWidth;
+            _dragStartPaperH = geo.PaperHeight;
+            _dragStartImgW = geo.ImgWidth;
+            _dragStartImgH = geo.ImgHeight;
+            _dragStartBasePaperW = geoBase.PaperWidth;
+            _dragStartBasePaperH = geoBase.PaperHeight;
+
             Mouse.Capture((UIElement)sender);
             e.Handled = true;
         }
@@ -86,52 +136,179 @@ public partial class MainWindow : Window
             return;
 
         var photo = _viewModel.SelectedPhoto;
-        var geo = PsWorkbenchMath.Calculate(
-            host.ActualWidth,
-            host.ActualHeight,
-            photo.OriginalWidth > 0 ? photo.OriginalWidth : 1,
-            photo.OriginalHeight > 0 ? photo.OriginalHeight : 1,
-            photo.OffsetX,
-            photo.OffsetY,
-            _viewModel.SelectedSize,
-            _viewModel.SelectedMode,
-            photo.Orientation
-        );
-
         Point current = e.GetPosition(this);
         double deltaX = current.X - _dragStartPoint.X;
         double deltaY = current.Y - _dragStartPoint.Y;
 
-        bool allowX = _activeHandleTag is "All" or "Left" or "Right" or "TopLeft" or "TopRight" or "BottomLeft" or "BottomRight";
-        bool allowY = _activeHandleTag is "All" or "Top" or "Bottom" or "TopLeft" or "TopRight" or "BottomLeft" or "BottomRight";
+        double baseW = _dragStartBasePaperW > 10 ? _dragStartBasePaperW : 100;
+        double baseH = _dragStartBasePaperH > 10 ? _dragStartBasePaperH : 100;
+        double imgW = _dragStartImgW > 10 ? _dragStartImgW : baseW;
+        double imgH = _dragStartImgH > 10 ? _dragStartImgH : baseH;
 
-        // 四角控制点：在单轴固定满版无余量时，智能将斜向拖拽位移有效映射至唯一可动轴，杜绝手势死锁
+        if (_activeHandleTag == "All")
+        {
+            var geo = PsWorkbenchMath.Calculate(
+                host.ActualWidth,
+                host.ActualHeight,
+                photo.OriginalWidth > 0 ? photo.OriginalWidth : 1,
+                photo.OriginalHeight > 0 ? photo.OriginalHeight : 1,
+                photo.OffsetX,
+                photo.OffsetY,
+                _viewModel.SelectedSize,
+                _viewModel.SelectedMode,
+                photo.Orientation,
+                photo.CropScale
+            );
+
+            if (geo.ExcessW > 1)
+            {
+                double newOx = _dragStartOffsetX + (deltaX / geo.ExcessW);
+                photo.OffsetX = Math.Clamp(newOx, -0.5, 0.5);
+            }
+            if (geo.ExcessH > 1)
+            {
+                double newOy = _dragStartOffsetY + (deltaY / geo.ExcessH);
+                photo.OffsetY = Math.Clamp(newOy, -0.5, 0.5);
+            }
+            return;
+        }
+
+        // 四角控制点：等比缩放裁切框尺寸（对角点锚定）
         if (_activeHandleTag is "TopLeft" or "TopRight" or "BottomLeft" or "BottomRight")
         {
-            if (geo.ExcessW <= 1 && geo.ExcessH > 1 && Math.Abs(deltaY) < Math.Abs(deltaX))
+            double deltaScale = 0;
+            if (_activeHandleTag == "BottomRight")
             {
-                // 横向无余量、纵向有余量：若用户斜向或横向拖动，取最大位移幅度驱动纵向
-                double sign = (_activeHandleTag is "TopLeft" or "BottomLeft") ? (deltaX < 0 ? -1.0 : 1.0) : (deltaX > 0 ? 1.0 : -1.0);
-                if (Math.Abs(deltaY) < 2.0) deltaY = Math.Abs(deltaX) * (sign > 0 ? 1.0 : -1.0);
+                deltaScale = (deltaX / baseW + deltaY / baseH) / 2.0;
+                double newScale = Math.Clamp(_dragStartCropScale + deltaScale, 0.2, 1.0);
+                double curW = baseW * newScale;
+                double curH = baseH * newScale;
+                double excessW = Math.Max(0, imgW - curW);
+                double excessH = Math.Max(0, imgH - curH);
+
+                double targetPaperX = Math.Clamp(_dragStartPaperX, 0, excessW);
+                double targetPaperY = Math.Clamp(_dragStartPaperY, 0, excessH);
+                photo.OffsetX = excessW > 1 ? Math.Clamp(targetPaperX / excessW - 0.5, -0.5, 0.5) : 0;
+                photo.OffsetY = excessH > 1 ? Math.Clamp(targetPaperY / excessH - 0.5, -0.5, 0.5) : 0;
+                photo.CropScale = newScale;
             }
-            else if (geo.ExcessH <= 1 && geo.ExcessW > 1 && Math.Abs(deltaX) < Math.Abs(deltaY))
+            else if (_activeHandleTag == "TopLeft")
             {
-                // 纵向无余量、横向有余量：若用户斜向或纵向拖动，取最大位移幅度驱动横向
-                double sign = (_activeHandleTag is "TopLeft" or "TopRight") ? (deltaY < 0 ? -1.0 : 1.0) : (deltaY > 0 ? 1.0 : -1.0);
-                if (Math.Abs(deltaX) < 2.0) deltaX = Math.Abs(deltaY) * (sign > 0 ? 1.0 : -1.0);
+                deltaScale = (-deltaX / baseW - deltaY / baseH) / 2.0;
+                double newScale = Math.Clamp(_dragStartCropScale + deltaScale, 0.2, 1.0);
+                double curW = baseW * newScale;
+                double curH = baseH * newScale;
+                double excessW = Math.Max(0, imgW - curW);
+                double excessH = Math.Max(0, imgH - curH);
+
+                double startRight = _dragStartPaperX + _dragStartPaperW;
+                double startBottom = _dragStartPaperY + _dragStartPaperH;
+                double targetRight = Math.Clamp(startRight, curW, imgW);
+                double targetBottom = Math.Clamp(startBottom, curH, imgH);
+                double targetPaperX = targetRight - curW;
+                double targetPaperY = targetBottom - curH;
+                photo.OffsetX = excessW > 1 ? Math.Clamp(targetPaperX / excessW - 0.5, -0.5, 0.5) : 0;
+                photo.OffsetY = excessH > 1 ? Math.Clamp(targetPaperY / excessH - 0.5, -0.5, 0.5) : 0;
+                photo.CropScale = newScale;
             }
+            else if (_activeHandleTag == "TopRight")
+            {
+                deltaScale = (deltaX / baseW - deltaY / baseH) / 2.0;
+                double newScale = Math.Clamp(_dragStartCropScale + deltaScale, 0.2, 1.0);
+                double curW = baseW * newScale;
+                double curH = baseH * newScale;
+                double excessW = Math.Max(0, imgW - curW);
+                double excessH = Math.Max(0, imgH - curH);
+
+                double targetPaperX = Math.Clamp(_dragStartPaperX, 0, excessW);
+                double startBottom = _dragStartPaperY + _dragStartPaperH;
+                double targetBottom = Math.Clamp(startBottom, curH, imgH);
+                double targetPaperY = targetBottom - curH;
+                photo.OffsetX = excessW > 1 ? Math.Clamp(targetPaperX / excessW - 0.5, -0.5, 0.5) : 0;
+                photo.OffsetY = excessH > 1 ? Math.Clamp(targetPaperY / excessH - 0.5, -0.5, 0.5) : 0;
+                photo.CropScale = newScale;
+            }
+            else if (_activeHandleTag == "BottomLeft")
+            {
+                deltaScale = (-deltaX / baseW + deltaY / baseH) / 2.0;
+                double newScale = Math.Clamp(_dragStartCropScale + deltaScale, 0.2, 1.0);
+                double curW = baseW * newScale;
+                double curH = baseH * newScale;
+                double excessW = Math.Max(0, imgW - curW);
+                double excessH = Math.Max(0, imgH - curH);
+
+                double startRight = _dragStartPaperX + _dragStartPaperW;
+                double targetRight = Math.Clamp(startRight, curW, imgW);
+                double targetPaperX = targetRight - curW;
+                double targetPaperY = Math.Clamp(_dragStartPaperY, 0, excessH);
+                photo.OffsetX = excessW > 1 ? Math.Clamp(targetPaperX / excessW - 0.5, -0.5, 0.5) : 0;
+                photo.OffsetY = excessH > 1 ? Math.Clamp(targetPaperY / excessH - 0.5, -0.5, 0.5) : 0;
+                photo.CropScale = newScale;
+            }
+            return;
         }
 
-        if (allowX && geo.ExcessW > 1)
+        // 纯上下与纯左右中心手柄推拉调整
+        if (_activeHandleTag is "Top" or "Bottom")
         {
-            double newOx = _dragStartOffsetX + (deltaX / geo.ExcessW);
-            photo.OffsetX = Math.Clamp(newOx, -0.5, 0.5);
+            double deltaScale = _activeHandleTag == "Bottom" ? (deltaY / baseH) : (-deltaY / baseH);
+            double newScale = Math.Clamp(_dragStartCropScale + deltaScale, 0.2, 1.0);
+            double curW = baseW * newScale;
+            double curH = baseH * newScale;
+            double excessW = Math.Max(0, imgW - curW);
+            double excessH = Math.Max(0, imgH - curH);
+
+            if (_activeHandleTag == "Bottom")
+            {
+                double targetPaperY = Math.Clamp(_dragStartPaperY, 0, excessH);
+                photo.OffsetY = excessH > 1 ? Math.Clamp(targetPaperY / excessH - 0.5, -0.5, 0.5) : 0;
+            }
+            else
+            {
+                double startBottom = _dragStartPaperY + _dragStartPaperH;
+                double targetBottom = Math.Clamp(startBottom, curH, imgH);
+                double targetPaperY = targetBottom - curH;
+                photo.OffsetY = excessH > 1 ? Math.Clamp(targetPaperY / excessH - 0.5, -0.5, 0.5) : 0;
+            }
+
+            if (_dragStartCropScale >= 0.999 && newScale >= 0.999 && excessH > 1)
+            {
+                photo.OffsetY = Math.Clamp(_dragStartOffsetY + (deltaY / excessH), -0.5, 0.5);
+            }
+
+            photo.CropScale = newScale;
+            return;
         }
 
-        if (allowY && geo.ExcessH > 1)
+        if (_activeHandleTag is "Left" or "Right")
         {
-            double newOy = _dragStartOffsetY + (deltaY / geo.ExcessH);
-            photo.OffsetY = Math.Clamp(newOy, -0.5, 0.5);
+            double deltaScale = _activeHandleTag == "Right" ? (deltaX / baseW) : (-deltaX / baseW);
+            double newScale = Math.Clamp(_dragStartCropScale + deltaScale, 0.2, 1.0);
+            double curW = baseW * newScale;
+            double curH = baseH * newScale;
+            double excessW = Math.Max(0, imgW - curW);
+            double excessH = Math.Max(0, imgH - curH);
+
+            if (_activeHandleTag == "Right")
+            {
+                double targetPaperX = Math.Clamp(_dragStartPaperX, 0, excessW);
+                photo.OffsetX = excessW > 1 ? Math.Clamp(targetPaperX / excessW - 0.5, -0.5, 0.5) : 0;
+            }
+            else
+            {
+                double startRight = _dragStartPaperX + _dragStartPaperW;
+                double targetRight = Math.Clamp(startRight, curW, imgW);
+                double targetPaperX = targetRight - curW;
+                photo.OffsetX = excessW > 1 ? Math.Clamp(targetPaperX / excessW - 0.5, -0.5, 0.5) : 0;
+            }
+
+            if (_dragStartCropScale >= 0.999 && newScale >= 0.999 && excessW > 1)
+            {
+                photo.OffsetX = Math.Clamp(_dragStartOffsetX + (deltaX / excessW), -0.5, 0.5);
+            }
+
+            photo.CropScale = newScale;
+            return;
         }
     }
 
@@ -659,6 +836,18 @@ public partial class MainWindow : Window
         }
 
         return null;
+    }
+
+    private void PhotoCard_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is PhotoViewModel photo)
+        {
+            var list = (ListBox?)FindName("BatchGalleryList");
+            if (list != null && list.SelectedItem != photo)
+            {
+                list.SelectedItem = photo;
+            }
+        }
     }
 
     #endregion

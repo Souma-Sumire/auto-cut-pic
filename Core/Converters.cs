@@ -155,7 +155,8 @@ namespace AutoCutPic.Core
             double offsetY,
             PhotoSize targetSize,
             CutMode mode,
-            TargetOrientation? orientation = null
+            TargetOrientation? orientation = null,
+            double cropScale = 1.0
         )
         {
             if (viewportW <= 40 || viewportH <= 40 || origW <= 0 || origH <= 0 || targetSize == null)
@@ -207,26 +208,29 @@ namespace AutoCutPic.Core
                 imgX = 0;
                 imgY = 0;
 
+                double scale = Math.Clamp(cropScale, 0.1, 1.0);
+                double basePaperW, basePaperH;
+
                 if (photoAR > targetAR)
                 {
                     // 原图比相纸更宽：高度贴满相纸，宽度裁切
-                    paperH = imgH;
-                    paperW = imgH * targetAR;
-                    excessW = Math.Max(0, imgW - paperW);
-                    excessH = 0;
-                    paperX = (excessW / 2.0) + (offsetX * excessW);
-                    paperY = 0;
+                    basePaperH = imgH;
+                    basePaperW = imgH * targetAR;
                 }
                 else
                 {
                     // 原图比相纸更高：宽度贴满相纸，高度裁切
-                    paperW = imgW;
-                    paperH = imgW / targetAR;
-                    excessW = 0;
-                    excessH = Math.Max(0, imgH - paperH);
-                    paperX = 0;
-                    paperY = (excessH / 2.0) + (offsetY * excessH);
+                    basePaperW = imgW;
+                    basePaperH = imgW / targetAR;
                 }
+
+                paperW = Math.Max(10, basePaperW * scale);
+                paperH = Math.Max(10, basePaperH * scale);
+                excessW = Math.Max(0, imgW - paperW);
+                excessH = Math.Max(0, imgH - paperH);
+
+                paperX = (excessW / 2.0) + (offsetX * excessW);
+                paperY = (excessH / 2.0) + (offsetY * excessH);
 
                 paperX = Math.Max(0, Math.Min(paperX, imgW - paperW));
                 paperY = Math.Max(0, Math.Min(paperY, imgH - paperH));
@@ -301,16 +305,20 @@ namespace AutoCutPic.Core
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
             TargetOrientation? orientation = null;
+            double cropScale = 1.0;
             for (int i = 8; i < values.Length; i++)
             {
                 if (values[i] is TargetOrientation to)
                 {
                     orientation = to;
-                    break;
+                }
+                else if (values[i] is double cs && cs > 0 && cs <= 1.0)
+                {
+                    cropScale = cs;
                 }
             }
 
-            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation);
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation, cropScale);
             return parameter?.ToString() == "Width" ? Math.Max(10, geo.PaperWidth) : Math.Max(10, geo.PaperHeight);
         }
 
@@ -339,16 +347,20 @@ namespace AutoCutPic.Core
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
             TargetOrientation? orientation = null;
+            double cropScale = 1.0;
             for (int i = 8; i < values.Length; i++)
             {
                 if (values[i] is TargetOrientation to)
                 {
                     orientation = to;
-                    break;
+                }
+                else if (values[i] is double cs && cs > 0 && cs <= 1.0)
+                {
+                    cropScale = cs;
                 }
             }
 
-            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation);
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation, cropScale);
             return new Thickness(geo.PaperX, geo.PaperY, 0, 0);
         }
 
@@ -377,16 +389,20 @@ namespace AutoCutPic.Core
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
             TargetOrientation? orientation = null;
+            double cropScale = 1.0;
             for (int i = 8; i < values.Length; i++)
             {
                 if (values[i] is TargetOrientation to)
                 {
                     orientation = to;
-                    break;
+                }
+                else if (values[i] is double cs && cs > 0 && cs <= 1.0)
+                {
+                    cropScale = cs;
                 }
             }
 
-            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation);
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation, cropScale);
             return parameter?.ToString() == "Width" ? Math.Max(10, geo.ImgWidth) : Math.Max(10, geo.ImgHeight);
         }
 
@@ -415,16 +431,20 @@ namespace AutoCutPic.Core
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
             TargetOrientation? orientation = null;
+            double cropScale = 1.0;
             for (int i = 8; i < values.Length; i++)
             {
                 if (values[i] is TargetOrientation to)
                 {
                     orientation = to;
-                    break;
+                }
+                else if (values[i] is double cs && cs > 0 && cs <= 1.0)
+                {
+                    cropScale = cs;
                 }
             }
 
-            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation);
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation, cropScale);
             return new Thickness(geo.ImgX, geo.ImgY, 0, 0);
         }
 
@@ -453,19 +473,23 @@ namespace AutoCutPic.Core
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
             TargetOrientation? orientation = null;
+            double cropScale = 1.0;
             for (int i = 8; i < values.Length; i++)
             {
                 if (values[i] is TargetOrientation to)
                 {
                     orientation = to;
-                    break;
+                }
+                else if (values[i] is double cs && cs > 0 && cs <= 1.0)
+                {
+                    cropScale = cs;
                 }
             }
 
             if (mode == CutMode.Fit)
                 return Geometry.Empty; // 留白模式下遮罩为空，完整呈现相纸与纯白留白边
 
-            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation);
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode, orientation, cropScale);
             if (geo.BoardWidth <= 0 || geo.BoardHeight <= 0)
                 return Geometry.Empty;
 
@@ -695,6 +719,7 @@ namespace AutoCutPic.Core
             double offsetY = values[5] is double oy ? oy : 0.0;
 
             TargetOrientation? orientation = null;
+            double cropScale = 1.0;
             double boxW = 128.0;
             double boxH = 88.0;
             var doubleParams = new List<double>();
@@ -707,9 +732,16 @@ namespace AutoCutPic.Core
                     {
                         orientation = to;
                     }
-                    else if (values[i] is double d && d > 10)
+                    else if (values[i] is double d)
                     {
-                        doubleParams.Add(d);
+                        if (d > 10)
+                        {
+                            doubleParams.Add(d);
+                        }
+                        else if (d > 0 && d <= 1.0)
+                        {
+                            cropScale = d;
+                        }
                     }
                 }
             }
@@ -737,7 +769,8 @@ namespace AutoCutPic.Core
                 mode,
                 offsetX,
                 offsetY,
-                orientation
+                orientation,
+                cropScale
             );
 
             string param = parameter?.ToString() ?? "";

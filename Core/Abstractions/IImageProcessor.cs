@@ -14,7 +14,8 @@ namespace AutoCutPic.Core.Abstractions
         double OffsetX,
         double OffsetY,
         CutMode? Mode = null,
-        AutoCutPic.Core.Calculators.TargetOrientation? Orientation = null
+        AutoCutPic.Core.Calculators.TargetOrientation? Orientation = null,
+        double CropScale = 1.0
     );
 
     /// <summary>
@@ -35,7 +36,8 @@ namespace AutoCutPic.Core.Abstractions
             CropSettings settings,
             double offsetX = 0,
             double offsetY = 0,
-            AutoCutPic.Core.Calculators.TargetOrientation? orientation = null
+            AutoCutPic.Core.Calculators.TargetOrientation? orientation = null,
+            double cropScale = 1.0
         );
 
         /// <summary>

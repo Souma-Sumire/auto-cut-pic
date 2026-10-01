@@ -1,9 +1,126 @@
-﻿<Application x:Class="AutoCutPic.App"
+<Application x:Class="AutoCutPic.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:AutoCutPic"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <!-- 工业风专业暗色上下文菜单与菜单项统一样式 -->
+        <Style TargetType="{x:Type ContextMenu}">
+            <Setter Property="Background" Value="#252526" />
+            <Setter Property="BorderBrush" Value="#3E3E42" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#D4D4D4" />
+            <Setter Property="Padding" Value="2,4" />
+            <Setter Property="MinWidth" Value="180" />
+            <Setter Property="Grid.IsSharedSizeScope" Value="True" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="UseLayoutRounding" Value="True" />
+            <Setter Property="HasDropShadow" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ContextMenu}">
+                        <Border
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="12" ShadowDepth="2" Direction="270" Color="#000000" Opacity="0.45" />
+                            </Border.Effect>
+                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type Separator}">
+            <Setter Property="Height" Value="1" />
+            <Setter Property="Margin" Value="4,4" />
+            <Setter Property="Background" Value="#383838" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Separator}">
+                        <Border Height="{TemplateBinding Height}" Margin="{TemplateBinding Margin}" Background="{TemplateBinding Background}" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type MenuItem}">
+            <Setter Property="Foreground" Value="#D4D4D4" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type MenuItem}">
+                        <Border
+                            x:Name="BgBorder"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="3"
+                            Padding="6,0,10,0"
+                            Margin="2,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="20" SharedSizeGroup="MenuItemIconColumn" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="MenuItemGestureColumn" />
+                                </Grid.ColumnDefinitions>
+
+                                <Path
+                                    x:Name="CheckMark"
+                                    Grid.Column="0"
+                                    Data="M 2 6 L 6 10 L 13 3"
+                                    Stroke="#0078D4"
+                                    StrokeThickness="1.5"
+                                    StrokeStartLineCap="Round"
+                                    StrokeEndLineCap="Round"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Visibility="Collapsed" />
+
+                                <ContentPresenter
+                                    x:Name="HeaderHost"
+                                    Grid.Column="1"
+                                    ContentSource="Header"
+                                    RecognizesAccessKey="True"
+                                    VerticalAlignment="Center"
+                                    Margin="4,0,12,0" />
+
+                                <TextBlock
+                                    x:Name="GestureText"
+                                    Grid.Column="2"
+                                    Text="{TemplateBinding InputGestureText}"
+                                    Foreground="#888888"
+                                    FontSize="11"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Right"
+                                    Margin="12,0,2,0"
+                                    Visibility="Visible" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="BgBorder" Property="Background" Value="#33373B" />
+                                <Setter Property="Foreground" Value="#FFFFFF" />
+                                <Setter TargetName="CheckMark" Property="Stroke" Value="#38A9FF" />
+                                <Setter TargetName="GestureText" Property="Foreground" Value="#BBBBBB" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#555555" />
+                                <Setter TargetName="GestureText" Property="Foreground" Value="#444444" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Application.Resources>
 </Application>

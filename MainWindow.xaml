@@ -31,6 +31,125 @@
         <core:HideMatchedVisibilityConverter x:Key="HideMatchedVisibilityConverter" />
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
+        <!-- 工业风专业暗色上下文菜单与菜单项统一样式 -->
+        <Style TargetType="{x:Type ContextMenu}">
+            <Setter Property="Background" Value="#252526" />
+            <Setter Property="BorderBrush" Value="#3E3E42" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#D4D4D4" />
+            <Setter Property="Padding" Value="2,4" />
+            <Setter Property="MinWidth" Value="180" />
+            <Setter Property="Grid.IsSharedSizeScope" Value="True" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="UseLayoutRounding" Value="True" />
+            <Setter Property="HasDropShadow" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ContextMenu}">
+                        <Border
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="12" ShadowDepth="2" Direction="270" Color="#000000" Opacity="0.45" />
+                            </Border.Effect>
+                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type Separator}">
+            <Setter Property="Height" Value="1" />
+            <Setter Property="Margin" Value="4,4" />
+            <Setter Property="Background" Value="#383838" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Separator}">
+                        <Border Height="{TemplateBinding Height}" Margin="{TemplateBinding Margin}" Background="{TemplateBinding Background}" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type MenuItem}">
+            <Setter Property="Foreground" Value="#D4D4D4" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type MenuItem}">
+                        <Border
+                            x:Name="BgBorder"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="3"
+                            Padding="6,0,10,0"
+                            Margin="2,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="20" SharedSizeGroup="MenuItemIconColumn" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="MenuItemGestureColumn" />
+                                </Grid.ColumnDefinitions>
+
+                                <Path
+                                    x:Name="CheckMark"
+                                    Grid.Column="0"
+                                    Data="M 2 6 L 6 10 L 13 3"
+                                    Stroke="#0078D4"
+                                    StrokeThickness="1.5"
+                                    StrokeStartLineCap="Round"
+                                    StrokeEndLineCap="Round"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Visibility="Collapsed" />
+
+                                <ContentPresenter
+                                    x:Name="HeaderHost"
+                                    Grid.Column="1"
+                                    ContentSource="Header"
+                                    RecognizesAccessKey="True"
+                                    VerticalAlignment="Center"
+                                    Margin="4,0,12,0" />
+
+                                <TextBlock
+                                    x:Name="GestureText"
+                                    Grid.Column="2"
+                                    Text="{TemplateBinding InputGestureText}"
+                                    Foreground="#888888"
+                                    FontSize="11"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Right"
+                                    Margin="12,0,2,0"
+                                    Visibility="Visible" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="BgBorder" Property="Background" Value="#33373B" />
+                                <Setter Property="Foreground" Value="#FFFFFF" />
+                                <Setter TargetName="CheckMark" Property="Stroke" Value="#38A9FF" />
+                                <Setter TargetName="GestureText" Property="Foreground" Value="#BBBBBB" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#555555" />
+                                <Setter TargetName="GestureText" Property="Foreground" Value="#444444" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- 工业风单选框样式 -->
         <Style x:Key="IndustrialRadio" TargetType="RadioButton">
             <Setter Property="Foreground" Value="#CCCCCC" />
@@ -131,26 +250,37 @@
                         MouseMove="PhotoCanvas_MouseMove"
                         MouseUp="PhotoCanvas_MouseUp">
                         <Grid.ContextMenu>
-                            <ContextMenu Background="#202020" BorderBrush="#383838" BorderThickness="1">
+                            <ContextMenu>
                                 <MenuItem
-                                    Header="裁剪填充 (Fill)"
+                                    Header="裁剪填充"
+                                    InputGestureText="Fill"
                                     Command="{Binding SetModeCommand}"
                                     CommandParameter="Fill"
                                     IsChecked="{Binding SelectedMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Fill}" />
                                 <MenuItem
-                                    Header="留白完整 (Fit)"
+                                    Header="留白完整"
+                                    InputGestureText="Fit"
                                     Command="{Binding SetModeCommand}"
                                     CommandParameter="Fit"
                                     IsChecked="{Binding SelectedMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Fit}" />
-                                <Separator Background="#383838" Margin="4,2" />
+                                <Separator />
                                 <MenuItem
-                                    Header="切换模式 (翻转)"
+                                    Header="切换裁切模式"
                                     InputGestureText="F"
                                     Command="{Binding ToggleModeCommand}" />
                                 <MenuItem
-                                    Header="切换相纸方向 (横/竖)"
+                                    Header="切换相纸方向"
                                     InputGestureText="X"
                                     Command="{Binding ToggleOrientationCommand}" />
+                                <Separator />
+                                <MenuItem
+                                    Header="在资源管理器中显示"
+                                    Command="{Binding OpenFileInExplorerCommand}"
+                                    CommandParameter="{Binding SelectedPhoto}" />
+                                <MenuItem
+                                    Header="复制文件完整路径"
+                                    Command="{Binding CopyFilePathCommand}"
+                                    CommandParameter="{Binding SelectedPhoto}" />
                             </ContextMenu>
                         </Grid.ContextMenu>
                         <Grid.Style>
@@ -349,6 +479,7 @@
                                     <Binding Path="SelectedSize" />
                                     <Binding Path="SelectedMode" />
                                     <Binding Path="SelectedPhoto.Orientation" />
+                                    <Binding Path="SelectedPhoto.CropScale" />
                                 </MultiBinding>
                             </Path.Data>
                         </Path>
@@ -368,6 +499,7 @@
                                     <Binding Path="SelectedSize" />
                                     <Binding Path="SelectedMode" />
                                     <Binding Path="SelectedPhoto.Orientation" />
+                                    <Binding Path="SelectedPhoto.CropScale" />
                                 </MultiBinding>
                             </Grid.Width>
                             <Grid.Height>
@@ -381,6 +513,7 @@
                                     <Binding Path="SelectedSize" />
                                     <Binding Path="SelectedMode" />
                                     <Binding Path="SelectedPhoto.Orientation" />
+                                    <Binding Path="SelectedPhoto.CropScale" />
                                 </MultiBinding>
                             </Grid.Height>
                             <Grid.Margin>
@@ -394,6 +527,7 @@
                                     <Binding Path="SelectedSize" />
                                     <Binding Path="SelectedMode" />
                                     <Binding Path="SelectedPhoto.Orientation" />
+                                    <Binding Path="SelectedPhoto.CropScale" />
                                 </MultiBinding>
                             </Grid.Margin>
 
@@ -487,7 +621,7 @@
                                 Margin="-6,-6,0,0"
                                 Width="32"
                                 Height="32"
-                                Cursor="SizeAll"
+                                Cursor="SizeNWSE"
                                 Background="#01000000"
                                 MouseDown="CropHandle_MouseDown"
                                 MouseMove="CropHandle_MouseMove"
@@ -502,7 +636,7 @@
                                 Margin="0,-6,-6,0"
                                 Width="32"
                                 Height="32"
-                                Cursor="SizeAll"
+                                Cursor="SizeNESW"
                                 Background="#01000000"
                                 MouseDown="CropHandle_MouseDown"
                                 MouseMove="CropHandle_MouseMove"
@@ -517,7 +651,7 @@
                                 Margin="-6,0,0,-6"
                                 Width="32"
                                 Height="32"
-                                Cursor="SizeAll"
+                                Cursor="SizeNESW"
                                 Background="#01000000"
                                 MouseDown="CropHandle_MouseDown"
                                 MouseMove="CropHandle_MouseMove"
@@ -532,7 +666,7 @@
                                 Margin="0,0,-6,-6"
                                 Width="32"
                                 Height="32"
-                                Cursor="SizeAll"
+                                Cursor="SizeNWSE"
                                 Background="#01000000"
                                 MouseDown="CropHandle_MouseDown"
                                 MouseMove="CropHandle_MouseMove"
@@ -758,7 +892,8 @@
                                     Background="#1E1E1E"
                                     BorderThickness="2"
                                     CornerRadius="4"
-                                    Cursor="Hand">
+                                    Cursor="Hand"
+                                    PreviewMouseRightButtonDown="PhotoCard_PreviewMouseRightButtonDown">
                                     <Border.Visibility>
                                         <MultiBinding Converter="{StaticResource HideMatchedVisibilityConverter}">
                                             <Binding Path="IsAspectMatched" />
@@ -772,20 +907,25 @@
                                         </MultiBinding>
                                     </Border.Opacity>
                                     <Border.ContextMenu>
-                                        <ContextMenu Background="#202020" BorderBrush="#383838" BorderThickness="1">
+                                        <ContextMenu>
                                             <MenuItem
-                                                Header="裁剪填充 (Fill)"
+                                                Header="裁剪填充"
+                                                InputGestureText="Fill"
                                                 Command="{Binding DataContext.SetModeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                CommandParameter="Fill" />
+                                                CommandParameter="Fill"
+                                                IsChecked="{Binding Mode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Fill}" />
                                             <MenuItem
-                                                Header="留白完整 (Fit)"
+                                                Header="留白完整"
+                                                InputGestureText="Fit"
                                                 Command="{Binding DataContext.SetModeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                CommandParameter="Fit" />
-                                            <Separator Background="#383838" Margin="4,2" />
+                                                CommandParameter="Fit"
+                                                IsChecked="{Binding Mode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Fit}" />
+                                            <Separator />
                                             <MenuItem
-                                                Header="切换相纸方向 (X)"
+                                                Header="切换相纸方向"
+                                                InputGestureText="X"
                                                 Command="{Binding DataContext.ToggleOrientationCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
-                                            <Separator Background="#383838" Margin="4,2" />
+                                            <Separator />
                                             <MenuItem
                                                 Header="在资源管理器中显示"
                                                 Command="{Binding DataContext.OpenFileInExplorerCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -833,6 +973,7 @@
                                                         <Binding Path="Orientation" />
                                                         <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                         <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="CropScale" />
                                                     </MultiBinding>
                                                 </Grid.Width>
                                                 <Grid.Height>
@@ -846,6 +987,7 @@
                                                         <Binding Path="Orientation" />
                                                         <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                         <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="CropScale" />
                                                     </MultiBinding>
                                                 </Grid.Height>
 
@@ -865,6 +1007,7 @@
                                                             <Binding Path="Orientation" />
                                                             <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                             <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="CropScale" />
                                                         </MultiBinding>
                                                     </Border.Visibility>
                                                     <Border.Width>
@@ -878,6 +1021,7 @@
                                                             <Binding Path="Orientation" />
                                                             <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                             <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="CropScale" />
                                                         </MultiBinding>
                                                     </Border.Width>
                                                     <Border.Height>
@@ -891,6 +1035,7 @@
                                                             <Binding Path="Orientation" />
                                                             <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                             <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="CropScale" />
                                                         </MultiBinding>
                                                     </Border.Height>
                                                     <Border.Margin>
@@ -904,6 +1049,7 @@
                                                             <Binding Path="Orientation" />
                                                             <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                             <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="CropScale" />
                                                         </MultiBinding>
                                                     </Border.Margin>
                                                 </Border>
@@ -926,6 +1072,7 @@
                                                             <Binding Path="Orientation" />
                                                             <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                             <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="CropScale" />
                                                         </MultiBinding>
                                                     </Image.Width>
                                                     <Image.Height>
@@ -939,6 +1086,7 @@
                                                             <Binding Path="Orientation" />
                                                             <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                             <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="CropScale" />
                                                         </MultiBinding>
                                                     </Image.Height>
                                                     <Image.Margin>
@@ -952,6 +1100,7 @@
                                                             <Binding Path="Orientation" />
                                                             <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                             <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="CropScale" />
                                                         </MultiBinding>
                                                     </Image.Margin>
                                                 </Image>
@@ -971,6 +1120,7 @@
                                                             <Binding Path="Orientation" />
                                                             <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                             <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="CropScale" />
                                                         </MultiBinding>
                                                     </Path.Data>
                                                 </Path>

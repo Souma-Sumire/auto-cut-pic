@@ -395,6 +395,45 @@ namespace AutoCutPic.Tests
 
             Assert.Equal(TargetOrientation.Portrait, orientation);
         }
+
+        [Fact]
+        public void FillCrop_WithCropScale_ShouldScaleCropBoxAndAllow2DAxisMovement()
+        {
+            // 照片 1600 x 900，相纸 800 x 600 (4:3)
+            // 满版时 (scale=1.0): cropH=900, cropW=1200, excessW=400, excessH=0
+            var paper = new PaperDimensions(800, 600);
+
+            // 当缩小裁切尺寸为 0.5 时：
+            // baseCropW=1200, baseCropH=900
+            // 缩小后: cropW = 1200 * 0.5 = 600, cropH = 900 * 0.5 = 450
+            // excessW = 1600 - 600 = 1000, excessH = 900 - 450 = 450
+            var cropScaled = CropGeometryCalculator.CalculateFillCrop(1600, 900, paper, 0, 0, 0.5);
+            Assert.Equal(600, cropScaled.Width);
+            Assert.Equal(450, cropScaled.Height);
+            Assert.Equal(500, cropScaled.X); // (1000 / 2) = 500
+            Assert.Equal(225, cropScaled.Y); // (450 / 2) = 225
+
+            // 在缩小裁切尺寸后，Y 轴也具备了平移空间 (offsetY = -0.5 贴顶)
+            var cropTop = CropGeometryCalculator.CalculateFillCrop(1600, 900, paper, 0, -0.5, 0.5);
+            Assert.Equal(0, cropTop.Y);
+
+            // 贴底 (offsetY = 0.5)
+            var cropBottom = CropGeometryCalculator.CalculateFillCrop(1600, 900, paper, 0, 0.5, 0.5);
+            Assert.Equal(450, cropBottom.Y);
+        }
+
+        [Fact]
+        public void CalculateBatchCardCropLayout_WithCropScale_ShouldScaleCropDimensions()
+        {
+            var layout1 = CropGeometryCalculator.CalculateBatchCardCropLayout(
+                128, 88, 1600, 900, PhotoSize.Inch6, CutMode.Fill, 0, 0, null, 1.0);
+
+            var layoutHalf = CropGeometryCalculator.CalculateBatchCardCropLayout(
+                128, 88, 1600, 900, PhotoSize.Inch6, CutMode.Fill, 0, 0, null, 0.5);
+
+            Assert.True(layoutHalf.CropWidth < layout1.CropWidth);
+            Assert.True(layoutHalf.CropHeight < layout1.CropHeight);
+        }
     }
 }
 

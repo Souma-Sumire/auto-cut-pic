@@ -122,6 +122,21 @@ namespace AutoCutPic.ViewModels
             }
         }
 
+        private double _cropScale = 1.0;
+        public double CropScale
+        {
+            get => _cropScale;
+            set
+            {
+                double clamped = Math.Clamp(value, 0.2, 1.0);
+                if (Math.Abs(_cropScale - clamped) > 0.0001)
+                {
+                    _cropScale = clamped;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         private TargetOrientation _orientation = TargetOrientation.Landscape;
         public TargetOrientation Orientation
         {
@@ -829,7 +844,7 @@ namespace AutoCutPic.ViewModels
             string outputFolder = Path.Combine(firstFileDir, "Clipped_Photos");
 
             var exportItems = Photos
-                .Select(p => new PhotoExportItem(p.FilePath, p.OffsetX, p.OffsetY, p.Mode, p.Orientation))
+                .Select(p => new PhotoExportItem(p.FilePath, p.OffsetX, p.OffsetY, p.Mode, p.Orientation, p.CropScale))
                 .ToList();
 
             var cropSettings = new CropSettings

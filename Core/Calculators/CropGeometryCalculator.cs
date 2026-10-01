@@ -161,44 +161,48 @@ namespace AutoCutPic.Core.Calculators
             int photoHeight,
             PaperDimensions targetPaper,
             double offsetX = 0,
-            double offsetY = 0)
+            double offsetY = 0,
+            double cropScale = 1.0)
         {
             if (photoWidth <= 0 || photoHeight <= 0 || targetPaper.Width <= 0 || targetPaper.Height <= 0)
             {
                 return new CropRect(0, 0, Math.Max(1, photoWidth), Math.Max(1, photoHeight));
             }
 
+            double scale = Math.Clamp(cropScale, 0.1, 1.0);
             double targetAR = (double)targetPaper.Width / targetPaper.Height;
             double photoAR = (double)photoWidth / photoHeight;
 
-            int cropW;
-            int cropH;
-            int cropX;
-            int cropY;
+            int baseCropW;
+            int baseCropH;
+
+            if (photoAR > targetAR)
+            {
+                baseCropH = photoHeight;
+                baseCropW = (int)Math.Round(baseCropH * targetAR, MidpointRounding.AwayFromZero);
+                baseCropW = Math.Clamp(baseCropW, 1, photoWidth);
+            }
+            else
+            {
+                baseCropW = photoWidth;
+                baseCropH = (int)Math.Round(baseCropW / targetAR, MidpointRounding.AwayFromZero);
+                baseCropH = Math.Clamp(baseCropH, 1, photoHeight);
+            }
+
+            int cropW = Math.Max(1, (int)Math.Round(baseCropW * scale, MidpointRounding.AwayFromZero));
+            int cropH = Math.Max(1, (int)Math.Round(baseCropH * scale, MidpointRounding.AwayFromZero));
+
+            cropW = Math.Clamp(cropW, 1, photoWidth);
+            cropH = Math.Clamp(cropH, 1, photoHeight);
+
+            int excessW = photoWidth - cropW;
+            int excessH = photoHeight - cropH;
 
             double clampedOffsetX = Math.Clamp(offsetX, -0.5, 0.5);
             double clampedOffsetY = Math.Clamp(offsetY, -0.5, 0.5);
 
-            if (photoAR > targetAR)
-            {
-                cropH = photoHeight;
-                cropW = (int)Math.Round(cropH * targetAR, MidpointRounding.AwayFromZero);
-                cropW = Math.Clamp(cropW, 1, photoWidth);
-
-                int excessW = photoWidth - cropW;
-                cropX = (int)Math.Round((excessW / 2.0) + (clampedOffsetX * excessW), MidpointRounding.AwayFromZero);
-                cropY = 0;
-            }
-            else
-            {
-                cropW = photoWidth;
-                cropH = (int)Math.Round(cropW / targetAR, MidpointRounding.AwayFromZero);
-                cropH = Math.Clamp(cropH, 1, photoHeight);
-
-                int excessH = photoHeight - cropH;
-                cropX = 0;
-                cropY = (int)Math.Round((excessH / 2.0) + (clampedOffsetY * excessH), MidpointRounding.AwayFromZero);
-            }
+            int cropX = (int)Math.Round((excessW / 2.0) + (clampedOffsetX * excessW), MidpointRounding.AwayFromZero);
+            int cropY = (int)Math.Round((excessH / 2.0) + (clampedOffsetY * excessH), MidpointRounding.AwayFromZero);
 
             cropX = Math.Clamp(cropX, 0, Math.Max(0, photoWidth - cropW));
             cropY = Math.Clamp(cropY, 0, Math.Max(0, photoHeight - cropH));
@@ -327,7 +331,8 @@ namespace AutoCutPic.Core.Calculators
             CutMode mode,
             double offsetX = 0,
             double offsetY = 0,
-            TargetOrientation? orientation = null)
+            TargetOrientation? orientation = null,
+            double cropScale = 1.0)
         {
             if (boxWidth <= 10 || boxHeight <= 10 || photoWidth <= 0 || photoHeight <= 0 || targetSize == null)
             {
@@ -363,7 +368,7 @@ namespace AutoCutPic.Core.Calculators
                 double imgW = Math.Max(10, Math.Round(photoWidth * scale));
                 double imgH = Math.Max(10, Math.Round(photoHeight * scale));
 
-                var cropRect = CalculateFillCrop(photoWidth, photoHeight, targetPaper, offsetX, offsetY);
+                var cropRect = CalculateFillCrop(photoWidth, photoHeight, targetPaper, offsetX, offsetY, cropScale);
 
                 double cropW = Math.Max(5, Math.Round(cropRect.Width * scale));
                 double cropH = Math.Max(5, Math.Round(cropRect.Height * scale));
