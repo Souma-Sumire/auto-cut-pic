@@ -75,30 +75,22 @@ namespace AutoCutPic.Core
                     var current = currentItemProvider();
                     int currentIndex = current != null ? items.FindIndex(i => i.FilePath == current.FilePath) : -1;
 
-                    // 寻找符合安全定稿条件的照片：
-                    // 1. 在当前正在裁的照片之前 (index < currentIndex)；若未选中任何照片，则检查全量
-                    // 2. 距离最后一次改动或离开已超过 5 秒（防改动回退）
-                    // 3. 尚未完成该构图签名的预导出
+                    // 寻找符合安全定稿条件的照片（需静置离开或无修改超过 5 秒）：
+                    // 1. 优先预导出在当前照片之前的照片 (i < currentIndex)
+                    // 2. 若前面均已就绪，且用户在当前照片停留超过 5 秒未做修改，预导出当前照片 (i == currentIndex)
+                    // 3. 若当前及之前均已就绪，预导出后续已静置满 5 秒的照片 (i > currentIndex)
                     PreExportItem? candidate = null;
                     string candidateSig = string.Empty;
 
                     DateTime now = DateTime.UtcNow;
                     const double settleThresholdSeconds = 5.0;
 
-                    for (int i = 0; i < items.Count; i++)
+                    // 阶段 1：当前之前的已离开照片
+                    int scanLimit = currentIndex >= 0 ? Math.Min(currentIndex, items.Count) : items.Count;
+                    for (int i = 0; i < scanLimit; i++)
                     {
                         var item = items[i];
-                        if (currentIndex >= 0 && i >= currentIndex)
-                        {
-                            // 当前及以后的照片用户可能还在修或观察，暂给定稿安全期
-                            continue;
-                        }
-
-                        if ((now - item.LastModifiedUtc).TotalSeconds < settleThresholdSeconds)
-                        {
-                            // 离开时间未满 5 秒，暂不预导
-                            continue;
-                        }
+                        if ((now - item.LastModifiedUtc).TotalSeconds < settleThresholdSeconds) continue;
 
                         string sig = ComputeSignature(item);
                         if (!_completedSignatures.TryGetValue(item.FilePath, out var doneSig) || doneSig != sig)
@@ -106,6 +98,39 @@ namespace AutoCutPic.Core
                             candidate = item;
                             candidateSig = sig;
                             break;
+                        }
+                    }
+
+                    // 阶段 2：当前照片本身（要求停留在上面且 5 秒内未修改）
+                    if (candidate == null && currentIndex >= 0 && currentIndex < items.Count)
+                    {
+                        var item = items[currentIndex];
+                        if ((now - item.LastModifiedUtc).TotalSeconds >= settleThresholdSeconds)
+                        {
+                            string sig = ComputeSignature(item);
+                            if (!_completedSignatures.TryGetValue(item.FilePath, out var doneSig) || doneSig != sig)
+                            {
+                                candidate = item;
+                                candidateSig = sig;
+                            }
+                        }
+                    }
+
+                    // 阶段 3：当前之后的照片（若已翻回前面，后面的已静置照片也按序预导出）
+                    if (candidate == null && currentIndex >= 0 && currentIndex + 1 < items.Count)
+                    {
+                        for (int i = currentIndex + 1; i < items.Count; i++)
+                        {
+                            var item = items[i];
+                            if ((now - item.LastModifiedUtc).TotalSeconds < settleThresholdSeconds) continue;
+
+                            string sig = ComputeSignature(item);
+                            if (!_completedSignatures.TryGetValue(item.FilePath, out var doneSig) || doneSig != sig)
+                            {
+                                candidate = item;
+                                candidateSig = sig;
+                                break;
+                            }
                         }
                     }
 

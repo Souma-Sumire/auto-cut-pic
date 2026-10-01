@@ -721,10 +721,7 @@ namespace AutoCutPic.ViewModels
                 });
             });
 
-            foreach (var p in photoList)
-            {
-                Photos.Add(p);
-            }
+            await StreamPopulatePhotosAsync(photoList);
 
             IsLoading = false;
             IsInitialLoading = false;
@@ -1063,16 +1060,13 @@ namespace AutoCutPic.ViewModels
                 });
             });
 
-            // 后台全部处理完成后一次性填入 Photos，此时 UI 线程空闲，进度条能流畅呈现
-            foreach (var p in photoList)
-            {
-                AttachPhotoChangeHandler(p);
-                Photos.Add(p);
-            }
-
+            // 确保后台全部完成后进度显示立刻精确到达 100% (total/total)
             LoadingProgress = 100.0;
-            LoadingStatusText = $"已完成全部 {total} 张照片载入";
-            await Task.Delay(200);
+            LoadingStatusText = $"已载入缩略图 ({total}/{total})，正在构建视口...";
+            await Task.Delay(1);
+
+            // 分批平滑推入 ObservableCollection，每批出让 UI 线程让 Dispatcher 渲染，彻底消除假死
+            await StreamPopulatePhotosAsync(photoList);
 
             IsLoading = false;
             IsInitialLoading = false;
@@ -1101,6 +1095,31 @@ namespace AutoCutPic.ViewModels
             }
 
             RequestAutoSave();
+        }
+
+        private async Task StreamPopulatePhotosAsync(List<PhotoViewModel> photoList)
+        {
+            int total = photoList.Count;
+            const int batchSize = 35;
+            for (int i = 0; i < total; i += batchSize)
+            {
+                int count = Math.Min(batchSize, total - i);
+                for (int j = 0; j < count; j++)
+                {
+                    var p = photoList[i + j];
+                    AttachPhotoChangeHandler(p);
+                    Photos.Add(p);
+                }
+
+                int currentCount = i + count;
+                LoadingProgress = (double)currentCount / total * 100.0;
+                LoadingStatusText = $"正在构建视口卡片 ({currentCount}/{total})...";
+                await Task.Delay(1);
+            }
+
+            LoadingProgress = 100.0;
+            LoadingStatusText = $"已完成全部 {total} 张照片载入 (100%)";
+            await Task.Delay(150);
         }
 
         private void LoadThumbnail(PhotoViewModel photo)
