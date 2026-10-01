@@ -48,7 +48,8 @@ namespace AutoCutPic.Core.Abstractions
             CropSettings settings,
             string outputFolder,
             IProgress<ExportProgressReport>? progress = null,
-            CancellationToken cancellationToken = default
+            CancellationToken cancellationToken = default,
+            Func<PhotoExportItem, string?>? cachedFileResolver = null
         );
     }
 }

@@ -63,12 +63,15 @@ namespace AutoCutPic.ViewModels
             }
         }
 
+        public DateTime LastModifiedUtc { get; set; } = DateTime.UtcNow;
+
         public double OffsetX
         {
             get => _offsetX;
             set
             {
                 _offsetX = Math.Clamp(value, -0.5, 0.5);
+                LastModifiedUtc = DateTime.UtcNow;
                 OnPropertyChanged();
             }
         }
@@ -79,6 +82,7 @@ namespace AutoCutPic.ViewModels
             set
             {
                 _offsetY = Math.Clamp(value, -0.5, 0.5);
+                LastModifiedUtc = DateTime.UtcNow;
                 OnPropertyChanged();
             }
         }
@@ -103,6 +107,7 @@ namespace AutoCutPic.ViewModels
                 if (_mode != value)
                 {
                     _mode = value;
+                    LastModifiedUtc = DateTime.UtcNow;
                     OnPropertyChanged();
                 }
             }
@@ -132,6 +137,7 @@ namespace AutoCutPic.ViewModels
                 if (Math.Abs(_cropScale - clamped) > 0.0001)
                 {
                     _cropScale = clamped;
+                    LastModifiedUtc = DateTime.UtcNow;
                     OnPropertyChanged();
                 }
             }
@@ -146,6 +152,7 @@ namespace AutoCutPic.ViewModels
                 if (_orientation != value)
                 {
                     _orientation = value;
+                    LastModifiedUtc = DateTime.UtcNow;
                     OnPropertyChanged();
                 }
             }
@@ -190,13 +197,15 @@ namespace AutoCutPic.ViewModels
         }
     }
 
-    public class MainViewModel : INotifyPropertyChanged
+    public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         private readonly IImageProcessor _imageProcessor;
+        private readonly PipelinePreExporter _preExporter;
 
         private PhotoSize _selectedSize = PhotoSize.Inch6;
         private CutMode _selectedMode = CutMode.Fill;
         private string _statusText = "就绪";
+        private string _preExportStatusText = "";
         private double _zoomFactor = 1.0;
         private PhotoViewModel? _selectedPhoto;
         private bool _isExporting;
@@ -342,6 +351,26 @@ namespace AutoCutPic.ViewModels
             }
         }
 
+        public int CurrentPhotoIndex => _selectedPhoto != null && Photos.Count > 0
+            ? Photos.IndexOf(_selectedPhoto) + 1
+            : 0;
+
+        public int TotalPhotosCount => Photos.Count;
+
+        public double OverallProgressPercent
+        {
+            get => Photos.Count > 0 && CurrentPhotoIndex > 0
+                ? Math.Round((double)CurrentPhotoIndex / Photos.Count * 100.0, 1)
+                : 0.0;
+            set { }
+        }
+
+        public string OverallProgressText => Photos.Count > 0 && CurrentPhotoIndex > 0
+            ? $"{CurrentPhotoIndex} / {Photos.Count} ({OverallProgressPercent:F0}%)"
+            : "0 / 0 (0%)";
+
+        public bool HasPhotos => Photos.Count > 0;
+
         public PhotoViewModel? SelectedPhoto
         {
             get => _selectedPhoto;
@@ -352,7 +381,13 @@ namespace AutoCutPic.ViewModels
                     _selectedPhoto = value;
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(SelectedMode));
+                    OnPropertyChanged(nameof(CurrentPhotoIndex));
+                    OnPropertyChanged(nameof(TotalPhotosCount));
+                    OnPropertyChanged(nameof(OverallProgressPercent));
+                    OnPropertyChanged(nameof(OverallProgressText));
+                    OnPropertyChanged(nameof(HasPhotos));
                     OnSelectedPhotoChanged(value);
+                    RequestAutoSave();
                 }
             }
         }
@@ -529,6 +564,240 @@ namespace AutoCutPic.ViewModels
             }
         }
 
+        private string _autoSaveStatusText = "自动保存就绪";
+        public string AutoSaveStatusText
+        {
+            get => _autoSaveStatusText;
+            set
+            {
+                _autoSaveStatusText = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string PreExportStatusText
+        {
+            get => _preExportStatusText;
+            set
+            {
+                if (_preExportStatusText != value)
+                {
+                    _preExportStatusText = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private string? _currentProjectPath;
+        public string? CurrentProjectPath
+        {
+            get => _currentProjectPath;
+            set
+            {
+                _currentProjectPath = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool HasAutoSaveDraft => SessionManager.HasAutoSaveDraft();
+
+        private Timer? _autoSaveTimer;
+        private readonly object _autoSaveLock = new();
+
+        public void RequestAutoSave()
+        {
+            if (Photos.Count == 0) return;
+
+            lock (_autoSaveLock)
+            {
+                _autoSaveTimer?.Dispose();
+                _autoSaveTimer = new Timer(async _ =>
+                {
+                    await SaveAutoSaveSessionAsync();
+                }, null, 4000, Timeout.Infinite);
+            }
+        }
+
+        public async Task SaveAutoSaveSessionAsync()
+        {
+            if (Photos.Count == 0) return;
+            try
+            {
+                var data = CreateSessionSnapshot();
+                await SessionManager.SaveToFileAsync(data, SessionManager.AutoSaveFilePath);
+                var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                if (dispatcher != null)
+                {
+                    dispatcher.Invoke(() =>
+                    {
+                        AutoSaveStatusText = $"已自动保存 {DateTime.Now:HH:mm:ss}";
+                        OnPropertyChanged(nameof(HasAutoSaveDraft));
+                    });
+                }
+                else
+                {
+                    AutoSaveStatusText = $"已自动保存 {DateTime.Now:HH:mm:ss}";
+                    OnPropertyChanged(nameof(HasAutoSaveDraft));
+                }
+            }
+            catch { }
+        }
+
+        public void SaveSessionImmediately()
+        {
+            if (Photos.Count == 0) return;
+            try
+            {
+                var data = CreateSessionSnapshot();
+                SessionManager.SaveToFile(data, SessionManager.AutoSaveFilePath);
+            }
+            catch { }
+        }
+
+        public ProjectSessionData CreateSessionSnapshot()
+        {
+            return new ProjectSessionData
+            {
+                LastSavedTime = DateTime.UtcNow,
+                TargetSizeName = SelectedSize.Name,
+                FilterMode = MatchedFilterMode.ToString(),
+                CardWidth = GalleryCardWidth,
+                SelectedIndex = SelectedPhoto != null ? Photos.IndexOf(SelectedPhoto) : 0,
+                Photos = Photos.Select(p => new PhotoSessionItem
+                {
+                    FilePath = p.FilePath,
+                    OffsetX = p.OffsetX,
+                    OffsetY = p.OffsetY,
+                    CropScale = p.CropScale,
+                    Mode = p.Mode,
+                    Orientation = p.Orientation,
+                    IsAspectMatched = p.IsAspectMatched
+                }).ToList()
+            };
+        }
+
+        public async Task<bool> RestoreSessionAsync(ProjectSessionData data)
+        {
+            if (data == null || data.Photos == null || data.Photos.Count == 0) return false;
+
+            var validItems = data.Photos.Where(p => File.Exists(p.FilePath)).ToList();
+            if (validItems.Count == 0) return false;
+
+            IsLoading = true;
+            LoadingProgress = 0;
+            LoadingStatusText = "正在恢复工作进度...";
+            Photos.Clear();
+
+            var matchedSize = Sizes.FirstOrDefault(s => s.Name == data.TargetSizeName);
+            if (matchedSize != null) SelectedSize = matchedSize;
+            if (Enum.TryParse<PhotoFilterMode>(data.FilterMode, out var fm)) MatchedFilterMode = fm;
+            if (data.CardWidth >= 80 && data.CardWidth <= 300) GalleryCardWidth = data.CardWidth;
+
+            var photoList = new List<PhotoViewModel>();
+            foreach (var item in validItems)
+            {
+                var p = new PhotoViewModel(item.FilePath)
+                {
+                    OffsetX = item.OffsetX,
+                    OffsetY = item.OffsetY,
+                    CropScale = item.CropScale,
+                    Mode = item.Mode,
+                    Orientation = item.Orientation,
+                    IsAspectMatched = item.IsAspectMatched
+                };
+                AttachPhotoChangeHandler(p);
+                photoList.Add(p);
+            }
+
+            int total = photoList.Count;
+            int loaded = 0;
+            await Task.Run(() =>
+            {
+                var options = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount - 1) };
+                Parallel.ForEach(photoList, options, photo =>
+                {
+                    LoadThumbnail(photo);
+                    Interlocked.Increment(ref loaded);
+                });
+            });
+
+            foreach (var p in photoList)
+            {
+                Photos.Add(p);
+            }
+
+            IsLoading = false;
+            IsInitialLoading = false;
+            OnPropertyChanged(nameof(IsDropOverlayVisible));
+            OnPropertyChanged(nameof(HasPhotos));
+            OnPropertyChanged(nameof(TotalPhotosCount));
+            OnPropertyChanged(nameof(CurrentPhotoIndex));
+            OnPropertyChanged(nameof(OverallProgressPercent));
+            OnPropertyChanged(nameof(OverallProgressText));
+
+            int targetIdx = Math.Clamp(data.SelectedIndex, 0, Photos.Count - 1);
+            SelectedPhoto = Photos[targetIdx];
+
+            StatusText = $"已恢复工作区进度 (共 {Photos.Count} 张照片)";
+            AutoSaveStatusText = $"已恢复 {DateTime.Now:HH:mm:ss}";
+            return true;
+        }
+
+        public async Task<bool> TryAutoRestoreLastSessionAsync()
+        {
+            if (!SessionManager.HasAutoSaveDraft()) return false;
+            try
+            {
+                var draft = await SessionManager.LoadFromFileAsync(SessionManager.AutoSaveFilePath);
+                if (draft != null && draft.Photos.Any(p => File.Exists(p.FilePath)))
+                {
+                    return await RestoreSessionAsync(draft);
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        public void SaveProjectToFile(string filePath)
+        {
+            var data = CreateSessionSnapshot();
+            SessionManager.SaveToFile(data, filePath);
+            CurrentProjectPath = filePath;
+            StatusText = $"已保存项目工程: {Path.GetFileName(filePath)}";
+            AutoSaveStatusText = $"已保存 {DateTime.Now:HH:mm:ss}";
+        }
+
+        public async Task<bool> LoadProjectFromFileAsync(string filePath)
+        {
+            var data = await SessionManager.LoadFromFileAsync(filePath);
+            if (data != null)
+            {
+                bool ok = await RestoreSessionAsync(data);
+                if (ok)
+                {
+                    CurrentProjectPath = filePath;
+                    StatusText = $"已打开项目工程: {Path.GetFileName(filePath)}";
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public void AttachPhotoChangeHandler(PhotoViewModel photo)
+        {
+            photo.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName is nameof(PhotoViewModel.OffsetX)
+                    or nameof(PhotoViewModel.OffsetY)
+                    or nameof(PhotoViewModel.CropScale)
+                    or nameof(PhotoViewModel.Mode)
+                    or nameof(PhotoViewModel.Orientation))
+                {
+                    RequestAutoSave();
+                }
+            };
+        }
+
         public ICommand ExportCommand { get; }
         public ICommand CancelExportCommand { get; }
         public ICommand SwitchViewModeCommand { get; }
@@ -650,6 +919,47 @@ namespace AutoCutPic.ViewModels
                 _ => _exportCts?.Cancel(),
                 _ => IsExporting
             );
+
+            _preExporter = new PipelinePreExporter(_imageProcessor);
+            _preExporter.PreExportProgressChanged += (ready, total) =>
+            {
+                var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                if (dispatcher != null)
+                {
+                    dispatcher.InvokeAsync(() =>
+                    {
+                        PreExportStatusText = ready > 0 ? $"已预导出 {ready}/{total} 张" : "";
+                    });
+                }
+                else
+                {
+                    PreExportStatusText = ready > 0 ? $"已预导出 {ready}/{total} 张" : "";
+                }
+            };
+
+            _preExporter.Start(
+                () => Photos.Select(p => new PreExportItem(
+                    p.FilePath,
+                    p.OffsetX,
+                    p.OffsetY,
+                    p.CropScale,
+                    p.Mode,
+                    p.Orientation,
+                    SelectedSize,
+                    p.LastModifiedUtc
+                )).ToList(),
+                () => SelectedPhoto != null ? new PreExportItem(
+                    SelectedPhoto.FilePath,
+                    SelectedPhoto.OffsetX,
+                    SelectedPhoto.OffsetY,
+                    SelectedPhoto.CropScale,
+                    SelectedPhoto.Mode,
+                    SelectedPhoto.Orientation,
+                    SelectedSize,
+                    SelectedPhoto.LastModifiedUtc
+                ) : null,
+                () => IsExporting
+            );
         }
 
         private bool _isInitialLoading;
@@ -678,6 +988,11 @@ namespace AutoCutPic.ViewModels
             LoadingStatusText = $"正在准备导入照片 (0/{allFiles.Length})...";
             Photos.Clear();
             OnPropertyChanged(nameof(IsDropOverlayVisible));
+            OnPropertyChanged(nameof(HasPhotos));
+            OnPropertyChanged(nameof(TotalPhotosCount));
+            OnPropertyChanged(nameof(CurrentPhotoIndex));
+            OnPropertyChanged(nameof(OverallProgressPercent));
+            OnPropertyChanged(nameof(OverallProgressText));
 
             // 先构建壳列表，不立刻添加到 Photos（避免 WPF 视觉树构建堵死 UI 队列）
             var photoList = allFiles.Select(f => new PhotoViewModel(f)).ToList();
@@ -720,6 +1035,7 @@ namespace AutoCutPic.ViewModels
             // 后台全部处理完成后一次性填入 Photos，此时 UI 线程空闲，进度条能流畅呈现
             foreach (var p in photoList)
             {
+                AttachPhotoChangeHandler(p);
                 Photos.Add(p);
             }
 
@@ -732,6 +1048,11 @@ namespace AutoCutPic.ViewModels
             OnPropertyChanged(nameof(IsDropOverlayVisible));
             UpdateAspectMatchForAll();
             StatusText = $"已导入 {Photos.Count} 张照片";
+            OnPropertyChanged(nameof(HasPhotos));
+            OnPropertyChanged(nameof(TotalPhotosCount));
+            OnPropertyChanged(nameof(CurrentPhotoIndex));
+            OnPropertyChanged(nameof(OverallProgressPercent));
+            OnPropertyChanged(nameof(OverallProgressText));
 
             // 在淡化或隐藏免修模式下，优先选中第一张需要构图干预的非淡化照片
             if (MatchedFilterMode != PhotoFilterMode.Show && (SelectedPhoto == null || SelectedPhoto.IsAspectMatched))
@@ -747,6 +1068,8 @@ namespace AutoCutPic.ViewModels
             {
                 SelectedPhoto = Photos[0];
             }
+
+            RequestAutoSave();
         }
 
         private void LoadThumbnail(PhotoViewModel photo)
@@ -870,7 +1193,25 @@ namespace AutoCutPic.ViewModels
                     cropSettings,
                     outputFolder,
                     progress,
-                    _exportCts.Token
+                    _exportCts.Token,
+                    cachedFileResolver: item =>
+                    {
+                        var effectiveMode = item.Mode ?? cropSettings.Mode;
+                        var effectiveOrientation = item.Orientation ?? TargetOrientation.Landscape;
+                        if (_preExporter.TryGetCachedExport(
+                            item.FilePath,
+                            cropSettings.TargetSize,
+                            effectiveMode,
+                            effectiveOrientation,
+                            item.OffsetX,
+                            item.OffsetY,
+                            item.CropScale,
+                            out var cachedPath))
+                        {
+                            return cachedPath;
+                        }
+                        return null;
+                    }
                 );
 
                 if (result.IsCancelled)
@@ -892,6 +1233,13 @@ namespace AutoCutPic.ViewModels
                 _exportCts.Dispose();
                 _exportCts = null;
             }
+        }
+
+        public void Dispose()
+        {
+            _autoSaveTimer?.Dispose();
+            _preExporter.Dispose();
+            _exportCts?.Dispose();
         }
 
         private static BitmapSource ConvertToBitmapSource(MagickImage image)

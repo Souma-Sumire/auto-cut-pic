@@ -109,7 +109,8 @@ namespace AutoCutPic.Core
             CropSettings settings,
             string outputFolder,
             IProgress<ExportProgressReport>? progress = null,
-            CancellationToken cancellationToken = default
+            CancellationToken cancellationToken = default,
+            Func<PhotoExportItem, string?>? cachedFileResolver = null
         )
         {
             if (!Directory.Exists(outputFolder))
@@ -138,6 +139,20 @@ namespace AutoCutPic.Core
 
                         try
                         {
+                            string fileName = Path.GetFileNameWithoutExtension(item.FilePath);
+                            string outPath = Path.Combine(
+                                outputFolder,
+                                $"{fileName}_{settings.TargetSize.Name}.jpg"
+                            );
+
+                            string? cachedFile = cachedFileResolver?.Invoke(item);
+                            if (!string.IsNullOrEmpty(cachedFile) && File.Exists(cachedFile))
+                            {
+                                File.Copy(cachedFile, outPath, true);
+                                Interlocked.Increment(ref successCount);
+                                return;
+                            }
+
                             using var image = LoadImage(item.FilePath);
                             var effectiveMode = item.Mode ?? settings.Mode;
                             var itemSettings = effectiveMode == settings.Mode ? settings : settings with { Mode = effectiveMode };
@@ -150,11 +165,6 @@ namespace AutoCutPic.Core
                                 item.CropScale
                             );
 
-                            string fileName = Path.GetFileNameWithoutExtension(item.FilePath);
-                            string outPath = Path.Combine(
-                                outputFolder,
-                                $"{fileName}_{settings.TargetSize.Name}.jpg"
-                            );
                             processed.Write(outPath);
                             Interlocked.Increment(ref successCount);
                         }

@@ -306,6 +306,110 @@ namespace AutoCutPic.Tests
             Assert.True(vm.OpenFileInExplorerCommand.CanExecute(p));
             Assert.True(vm.CopyFilePathCommand.CanExecute(p));
         }
+
+        [Fact]
+        public void OverallProgress_ShouldCalculateCorrectly()
+        {
+            var vm = new MainViewModel();
+            Assert.False(vm.HasPhotos);
+            Assert.Equal(0, vm.CurrentPhotoIndex);
+            Assert.Equal(0, vm.TotalPhotosCount);
+            Assert.Equal(0.0, vm.OverallProgressPercent);
+            Assert.Equal("0 / 0 (0%)", vm.OverallProgressText);
+
+            var p1 = new PhotoViewModel("1.jpg");
+            var p2 = new PhotoViewModel("2.jpg");
+            var p3 = new PhotoViewModel("3.jpg");
+            var p4 = new PhotoViewModel("4.jpg");
+
+            vm.Photos.Add(p1);
+            vm.Photos.Add(p2);
+            vm.Photos.Add(p3);
+            vm.Photos.Add(p4);
+
+            vm.SelectedPhoto = p1;
+            Assert.True(vm.HasPhotos);
+            Assert.Equal(1, vm.CurrentPhotoIndex);
+            Assert.Equal(4, vm.TotalPhotosCount);
+            Assert.Equal(25.0, vm.OverallProgressPercent);
+            Assert.Equal("1 / 4 (25%)", vm.OverallProgressText);
+
+            vm.SelectedPhoto = p3;
+            Assert.Equal(3, vm.CurrentPhotoIndex);
+            Assert.Equal(75.0, vm.OverallProgressPercent);
+            Assert.Equal("3 / 4 (75%)", vm.OverallProgressText);
+
+            vm.SelectedPhoto = p4;
+            Assert.Equal(4, vm.CurrentPhotoIndex);
+            Assert.Equal(100.0, vm.OverallProgressPercent);
+            Assert.Equal("4 / 4 (100%)", vm.OverallProgressText);
+        }
+
+        [Fact]
+        public void CreateSessionSnapshot_ShouldRecordAccurateState()
+        {
+            var vm = new MainViewModel();
+            var p1 = new PhotoViewModel("test1.jpg")
+            {
+                OffsetX = 0.25,
+                OffsetY = -0.15,
+                CropScale = 0.85,
+                Mode = CutMode.Fit,
+                Orientation = AutoCutPic.Core.Calculators.TargetOrientation.Portrait,
+                IsAspectMatched = false
+            };
+            vm.Photos.Add(p1);
+            vm.SelectedPhoto = p1;
+
+            var snapshot = vm.CreateSessionSnapshot();
+            Assert.NotNull(snapshot);
+            Assert.Single(snapshot.Photos);
+            Assert.Equal("6寸", snapshot.TargetSizeName);
+            Assert.Equal("test1.jpg", snapshot.Photos[0].FilePath);
+            Assert.Equal(0.25, snapshot.Photos[0].OffsetX);
+            Assert.Equal(-0.15, snapshot.Photos[0].OffsetY);
+            Assert.Equal(0.85, snapshot.Photos[0].CropScale);
+            Assert.Equal(CutMode.Fit, snapshot.Photos[0].Mode);
+            Assert.Equal(AutoCutPic.Core.Calculators.TargetOrientation.Portrait, snapshot.Photos[0].Orientation);
+        }
+
+        [Fact]
+        public void SessionManager_SaveAndLoad_ShouldPreserveExactData()
+        {
+            string tempFile = Path.Combine(Path.GetTempPath(), $"autocut_test_{Guid.NewGuid():N}.json");
+            try
+            {
+                var data = new ProjectSessionData
+                {
+                    TargetSizeName = "5寸",
+                    FilterMode = "Hide",
+                    CardWidth = 180.0,
+                    SelectedIndex = 1,
+                    Photos = new List<PhotoSessionItem>
+                    {
+                        new() { FilePath = "img1.jpg", OffsetX = -0.3, OffsetY = 0.4, CropScale = 0.75, Mode = CutMode.Fill },
+                        new() { FilePath = "img2.jpg", OffsetX = 0.1, OffsetY = 0.2, CropScale = 0.9, Mode = CutMode.Fit }
+                    }
+                };
+
+                SessionManager.SaveToFile(data, tempFile);
+                Assert.True(File.Exists(tempFile));
+
+                var loaded = SessionManager.LoadFromFile(tempFile);
+                Assert.NotNull(loaded);
+                Assert.Equal("5寸", loaded.TargetSizeName);
+                Assert.Equal("Hide", loaded.FilterMode);
+                Assert.Equal(180.0, loaded.CardWidth);
+                Assert.Equal(1, loaded.SelectedIndex);
+                Assert.Equal(2, loaded.Photos.Count);
+                Assert.Equal(0.75, loaded.Photos[0].CropScale);
+                Assert.Equal(CutMode.Fit, loaded.Photos[1].Mode);
+            }
+            finally
+            {
+                if (File.Exists(tempFile)) File.Delete(tempFile);
+            }
+        }
     }
 }
 

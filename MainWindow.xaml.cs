@@ -52,9 +52,13 @@ public partial class MainWindow : Window
         PreviewMouseUp += MainWindow_PreviewMouseUp;
         Deactivated += (_, _) => StopAutoScroll();
 
-        Loaded += (_, _) =>
+        Loaded += async (_, _) =>
         {
             Focus();
+            if (!_viewModel.Photos.Any())
+            {
+                await _viewModel.TryAutoRestoreLastSessionAsync();
+            }
             ScrollSelectedPhotoIntoView();
         };
         _viewModel.PropertyChanged += (_, args) =>
@@ -64,6 +68,11 @@ public partial class MainWindow : Window
             {
                 ScrollSelectedPhotoIntoView();
             }
+        };
+        Closing += (_, _) =>
+        {
+            _viewModel.SaveSessionImmediately();
+            _viewModel.Dispose();
         };
         Closed += (_, _) => Application.Current?.Shutdown();
     }
@@ -376,6 +385,29 @@ public partial class MainWindow : Window
         Key key = e.Key == Key.ImeProcessed ? e.ImeProcessedKey : e.Key;
         bool isCtrl = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
         bool isShift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
+        // Ctrl + S: 手动保存工程 / 保存当前进度
+        if (isCtrl && !isShift && key == Key.S)
+        {
+            DoSaveProject();
+            e.Handled = true;
+            return;
+        }
+
+        // Ctrl + Shift + S: 工程另存为
+        if (isCtrl && isShift && key == Key.S)
+        {
+            DoSaveProjectAs();
+            e.Handled = true;
+            return;
+        }
+
+        // Ctrl + O: 打开工程项目
+        if (isCtrl && key == Key.O)
+        {
+            DoOpenProject();
+            e.Handled = true;
+            return;
+        }
 
         // Ctrl + A: 全选照片 (类似 Windows 资源管理器)
         if (isCtrl && key == Key.A)
@@ -449,6 +481,20 @@ public partial class MainWindow : Window
             ? batchGallery.SelectedItems
             : (_viewModel.SelectedPhoto != null ? new List<PhotoViewModel> { _viewModel.SelectedPhoto } : null);
 
+        // 空格键 / F: 切换当前选中照片的裁切模式 (裁剪填充 Fill / 留白完整 Fit)
+        if (key == Key.Space || key == Key.F)
+        {
+            if (selectedItems != null && selectedItems.Count > 0)
+            {
+                var targetMode = (_viewModel.SelectedPhoto?.Mode ?? CutMode.Fill) == CutMode.Fill
+                    ? CutMode.Fit
+                    : CutMode.Fill;
+                _viewModel.SetModeBatch(selectedItems, targetMode);
+            }
+            e.Handled = true;
+            return;
+        }
+
         if (selectedItems == null || selectedItems.Count == 0)
         {
             return;
@@ -489,14 +535,6 @@ public partial class MainWindow : Window
                     _viewModel.AlignBatch(selectedItems, AlignmentDirection.Right);
                 else
                     _viewModel.AdjustOffsetBatch(selectedItems, step, 0);
-                e.Handled = true;
-                break;
-
-            case Key.F:
-                var targetMode = (_viewModel.SelectedPhoto?.Mode ?? CutMode.Fill) == CutMode.Fill
-                    ? CutMode.Fit
-                    : CutMode.Fill;
-                _viewModel.SetModeBatch(selectedItems, targetMode);
                 e.Handled = true;
                 break;
 
@@ -846,6 +884,74 @@ public partial class MainWindow : Window
             if (list != null && list.SelectedItem != photo)
             {
                 list.SelectedItem = photo;
+            }
+        }
+    }
+
+    private void SaveProject_Click(object sender, RoutedEventArgs e)
+    {
+        DoSaveProject();
+    }
+
+    private void OpenProject_Click(object sender, RoutedEventArgs e)
+    {
+        DoOpenProject();
+    }
+
+    private void DoSaveProject()
+    {
+        if (string.IsNullOrEmpty(_viewModel.CurrentProjectPath))
+        {
+            DoSaveProjectAs();
+        }
+        else
+        {
+            _viewModel.SaveProjectToFile(_viewModel.CurrentProjectPath);
+        }
+    }
+
+    private void DoSaveProjectAs()
+    {
+        if (!_viewModel.Photos.Any())
+        {
+            MessageBox.Show("当前没有已导入的照片，无需保存工程。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "保存裁切工程项目",
+            Filter = "AutoCutPic 工程文件 (*.autocut)|*.autocut|JSON 格式 (*.json)|*.json",
+            DefaultExt = ".autocut",
+            FileName = $"AutoCut_Project_{DateTime.Now:yyyyMMdd_HHmm}.autocut"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            _viewModel.SaveProjectToFile(dialog.FileName);
+        }
+    }
+
+    private async void DoOpenProject()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "打开裁切工程项目",
+            Filter = "AutoCutPic 工程文件 (*.autocut;*.json)|*.autocut;*.json|所有文件 (*.*)|*.*",
+            Multiselect = false
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            bool ok = await _viewModel.LoadProjectFromFileAsync(dialog.FileName);
+            if (ok)
+            {
+                Focus();
+                ScrollSelectedPhotoIntoView();
+            }
+            else
+            {
+                MessageBox.Show("未能恢复该工程，工程中的照片文件可能已被移动或删除。", "打开失败", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
     }
