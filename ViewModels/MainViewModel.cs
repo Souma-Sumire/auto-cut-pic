@@ -673,7 +673,7 @@ namespace AutoCutPic.ViewModels
             var progress = new Progress<(int current, double pct, string name)>(report =>
             {
                 LoadingProgress = report.pct;
-                LoadingStatusText = $"正在载入 {report.current}/{total} ({report.pct:F0}%)";
+                LoadingStatusText = $"正在载入 {report.current}/{total}";
             });
 
             long lastReportTick = 0;
