@@ -484,7 +484,7 @@
                             </Path.Data>
                         </Path>
 
-                        <!-- 层级 5：Photoshop 裁切取景框（高反差边框 + 九宫格三分线 + 四角直角手柄 + 边框拖拽热区） -->
+                        <!-- 层级 5：Photoshop 裁切取景框（高反差边框 + 四角直角手柄 + 边框拖拽热区） -->
                         <Grid
                             HorizontalAlignment="Left"
                             VerticalAlignment="Top">
@@ -543,28 +543,6 @@
                             <!-- 外框双层高反差细实线（外黑内白，在任何深浅背景上都极度清晰，穿透鼠标） -->
                             <Border BorderBrush="#80000000" BorderThickness="2" Margin="-1" IsHitTestVisible="False" />
                             <Border BorderBrush="#F0FFFFFF" BorderThickness="1" IsHitTestVisible="False" />
-
-                            <!-- 九宫格三等分线 (Rule of Thirds，穿透鼠标) -->
-                            <Grid IsHitTestVisible="False">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
-
-                                <!-- 纵向两条三等分线 -->
-                                <Border Grid.Column="0" BorderBrush="#50FFFFFF" BorderThickness="0,0,1,0" />
-                                <Border Grid.Column="1" BorderBrush="#50FFFFFF" BorderThickness="0,0,1,0" />
-
-                                <!-- 横向两条三等分线 -->
-                                <Border Grid.Row="0" Grid.ColumnSpan="3" BorderBrush="#50FFFFFF" BorderThickness="0,0,0,1" />
-                                <Border Grid.Row="1" Grid.ColumnSpan="3" BorderBrush="#50FFFFFF" BorderThickness="0,0,0,1" />
-                            </Grid>
 
                             <!-- 边框交互拖拽热区（四条边：宽 14px，鼠标放上去呈现双向调节光标） -->
                             <!-- 顶边框热区 -->
