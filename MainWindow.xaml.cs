@@ -31,6 +31,7 @@ public partial class MainWindow : Window
         AllowDrop = true;
         Drop += MainWindow_Drop;
         KeyDown += MainWindow_KeyDown;
+        Closed += (_, _) => Application.Current?.Shutdown();
     }
 
     private void PhotoCanvas_MouseDown(object sender, MouseButtonEventArgs e)

@@ -1,10 +1,20 @@
-﻿using System.Configuration;
-using System.Data;
+using System;
 using System.Windows;
 
-namespace AutoCutPic;
+namespace AutoCutPic
+{
+    public partial class App : Application
+    {
+        protected override void OnStartup(StartupEventArgs e)
+        {
+            base.OnStartup(e);
+            ShutdownMode = ShutdownMode.OnMainWindowClose;
+        }
 
-/// <summary>
-/// Interaction logic for App.xaml
-/// </summary>
-public partial class App : Application { }
+        protected override void OnExit(ExitEventArgs e)
+        {
+            base.OnExit(e);
+            Environment.Exit(0);
+        }
+    }
+}
