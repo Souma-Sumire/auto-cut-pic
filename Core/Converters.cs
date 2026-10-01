@@ -128,14 +128,19 @@ namespace AutoCutPic.Core
     }
 
     public readonly record struct PsWorkbenchGeometry(
-        double DispWidth,
-        double DispHeight,
-        double CropWidth,
-        double CropHeight,
-        double CropX,
-        double CropY,
+        double BoardWidth,
+        double BoardHeight,
+        double PaperWidth,
+        double PaperHeight,
+        double PaperX,
+        double PaperY,
+        double ImgWidth,
+        double ImgHeight,
+        double ImgX,
+        double ImgY,
         double ExcessW,
-        double ExcessH
+        double ExcessH,
+        bool IsFitMode
     );
 
     public static class PsWorkbenchMath
@@ -154,16 +159,6 @@ namespace AutoCutPic.Core
             if (viewportW <= 40 || viewportH <= 40 || origW <= 0 || origH <= 0 || targetSize == null)
                 return default;
 
-            // 预留工作台四周安全边距 50px
-            double availW = Math.Max(50, viewportW - 50);
-            double availH = Math.Max(50, viewportH - 50);
-
-            // 照片按 Uniform 比例缩放到工作台尺寸
-            double photoScale = Math.Min(availW / origW, availH / origH);
-            double dispW = Math.Max(10, origW * photoScale);
-            double dispH = Math.Max(10, origH * photoScale);
-
-            // 目标相纸长宽比（自适应横竖构图）
             bool isPortrait = origH > origW;
             int baseW = Math.Max(targetSize.PixelWidth, targetSize.PixelHeight);
             int baseH = Math.Min(targetSize.PixelWidth, targetSize.PixelHeight);
@@ -173,50 +168,84 @@ namespace AutoCutPic.Core
             double targetAR = (double)targetW / targetH;
             double photoAR = (double)origW / origH;
 
-            double cropW, cropH, cropX, cropY, excessW, excessH;
+            // 预留工作台四周安全边距 60px
+            double availW = Math.Max(50, viewportW - 60);
+            double availH = Math.Max(50, viewportH - 60);
 
-            if (mode == CutMode.Fill)
+            double boardW, boardH, paperW, paperH, paperX, paperY, imgW, imgH, imgX, imgY, excessW, excessH;
+
+            if (mode == CutMode.Fit)
             {
-                if (photoAR > targetAR)
-                {
-                    // 原图比相纸更宽：高度贴满照片，裁切宽度
-                    cropH = dispH;
-                    cropW = dispH * targetAR;
-                    excessW = Math.Max(0, dispW - cropW);
-                    excessH = 0;
-                    cropX = (excessW / 2.0) + (offsetX * excessW);
-                    cropY = 0;
-                }
-                else
-                {
-                    // 原图比相纸更窄/更高：宽度贴满照片，裁切高度
-                    cropW = dispW;
-                    cropH = dispW / targetAR;
-                    excessW = 0;
-                    excessH = Math.Max(0, dispH - cropH);
-                    cropX = 0;
-                    cropY = (excessH / 2.0) + (offsetY * excessH);
-                }
-            }
-            else
-            {
-                // Fit 留白模式：整张照片完整保留
-                cropW = dispW;
-                cropH = dispH;
-                cropX = 0;
-                cropY = 0;
+                // Fit 留白模式：相纸在视口内居中自适应，照片在相纸内部居中，露出的相纸底色为纯白白边
+                double paperScale = Math.Min(availW / targetW, availH / targetH);
+                paperW = Math.Max(10, targetW * paperScale);
+                paperH = Math.Max(10, targetH * paperScale);
+
+                double imgScale = Math.Min(paperW / origW, paperH / origH);
+                imgW = Math.Max(10, origW * imgScale);
+                imgH = Math.Max(10, origH * imgScale);
+
+                boardW = paperW;
+                boardH = paperH;
+                paperX = 0;
+                paperY = 0;
+
+                imgX = (paperW - imgW) / 2.0;
+                imgY = (paperH - imgH) / 2.0;
+
                 excessW = 0;
                 excessH = 0;
             }
+            else
+            {
+                // Fill 裁剪填充模式：照片在视口内最大化居中呈现，相纸在照片内部裁剪取景，相纸外部半透明暗色遮罩
+                double photoScale = Math.Min(availW / origW, availH / origH);
+                imgW = Math.Max(10, origW * photoScale);
+                imgH = Math.Max(10, origH * photoScale);
 
-            cropX = Math.Max(0, Math.Min(cropX, dispW - cropW));
-            cropY = Math.Max(0, Math.Min(cropY, dispH - cropH));
+                boardW = imgW;
+                boardH = imgH;
+                imgX = 0;
+                imgY = 0;
 
-            return new PsWorkbenchGeometry(dispW, dispH, cropW, cropH, cropX, cropY, excessW, excessH);
+                if (photoAR > targetAR)
+                {
+                    // 原图比相纸更宽：高度贴满相纸，宽度裁切
+                    paperH = imgH;
+                    paperW = imgH * targetAR;
+                    excessW = Math.Max(0, imgW - paperW);
+                    excessH = 0;
+                    paperX = (excessW / 2.0) + (offsetX * excessW);
+                    paperY = 0;
+                }
+                else
+                {
+                    // 原图比相纸更高：宽度贴满相纸，高度裁切
+                    paperW = imgW;
+                    paperH = imgW / targetAR;
+                    excessW = 0;
+                    excessH = Math.Max(0, imgH - paperH);
+                    paperX = 0;
+                    paperY = (excessH / 2.0) + (offsetY * excessH);
+                }
+
+                paperX = Math.Max(0, Math.Min(paperX, imgW - paperW));
+                paperY = Math.Max(0, Math.Min(paperY, imgH - paperH));
+            }
+
+            return new PsWorkbenchGeometry(
+                boardW, boardH,
+                paperW, paperH,
+                paperX, paperY,
+                imgW, imgH,
+                imgX, imgY,
+                excessW, excessH,
+                mode == CutMode.Fit
+            );
         }
     }
 
-    public class PsPhotoCanvasSizeConverter : IMultiValueConverter
+    public class PsBoardSizeConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
@@ -235,14 +264,14 @@ namespace AutoCutPic.Core
             CutMode mode = values[5] is CutMode m ? m : CutMode.Fill;
 
             var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, 0, 0, size, mode);
-            return parameter?.ToString() == "Width" ? Math.Max(10, geo.DispWidth) : Math.Max(10, geo.DispHeight);
+            return parameter?.ToString() == "Width" ? Math.Max(10, geo.BoardWidth) : Math.Max(10, geo.BoardHeight);
         }
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
 
-    public class PsCropBoxSizeConverter : IMultiValueConverter
+    public class PsPaperSizeConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
@@ -263,14 +292,14 @@ namespace AutoCutPic.Core
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
             var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
-            return parameter?.ToString() == "Width" ? Math.Max(10, geo.CropWidth) : Math.Max(10, geo.CropHeight);
+            return parameter?.ToString() == "Width" ? Math.Max(10, geo.PaperWidth) : Math.Max(10, geo.PaperHeight);
         }
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
 
-    public class PsCropBoxMarginConverter : IMultiValueConverter
+    public class PsPaperMarginConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
@@ -291,7 +320,63 @@ namespace AutoCutPic.Core
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
             var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
-            return new Thickness(geo.CropX, geo.CropY, 0, 0);
+            return new Thickness(geo.PaperX, geo.PaperY, 0, 0);
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    public class PsImgSizeConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (values == null || values.Length < 8) return 300.0;
+            for (int i = 0; i < values.Length; i++)
+            {
+                if (values[i] == DependencyProperty.UnsetValue || values[i] == null)
+                    return 300.0;
+            }
+
+            double vw = values[0] is double w ? w : 400;
+            double vh = values[1] is double h ? h : 300;
+            int origW = values[2] is int ow ? ow : 1;
+            int origH = values[3] is int oh ? oh : 1;
+            double ox = values[4] is double x ? x : 0;
+            double oy = values[5] is double y ? y : 0;
+            PhotoSize size = values[6] is PhotoSize ps ? ps : PhotoSize.Inch6;
+            CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
+
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
+            return parameter?.ToString() == "Width" ? Math.Max(10, geo.ImgWidth) : Math.Max(10, geo.ImgHeight);
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    public class PsImgMarginConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (values == null || values.Length < 8) return new Thickness(0);
+            for (int i = 0; i < values.Length; i++)
+            {
+                if (values[i] == DependencyProperty.UnsetValue || values[i] == null)
+                    return new Thickness(0);
+            }
+
+            double vw = values[0] is double w ? w : 400;
+            double vh = values[1] is double h ? h : 300;
+            int origW = values[2] is int ow ? ow : 1;
+            int origH = values[3] is int oh ? oh : 1;
+            double ox = values[4] is double x ? x : 0;
+            double oy = values[5] is double y ? y : 0;
+            PhotoSize size = values[6] is PhotoSize ps ? ps : PhotoSize.Inch6;
+            CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
+
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
+            return new Thickness(geo.ImgX, geo.ImgY, 0, 0);
         }
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
@@ -319,14 +404,14 @@ namespace AutoCutPic.Core
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
             if (mode == CutMode.Fit)
-                return Geometry.Empty;
+                return Geometry.Empty; // 留白模式下遮罩为空，完整呈现相纸与纯白留白边
 
             var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
-            if (geo.DispWidth <= 0 || geo.DispHeight <= 0)
+            if (geo.BoardWidth <= 0 || geo.BoardHeight <= 0)
                 return Geometry.Empty;
 
-            var fullRect = new RectangleGeometry(new Rect(0, 0, geo.DispWidth, geo.DispHeight));
-            var cropRect = new RectangleGeometry(new Rect(geo.CropX, geo.CropY, geo.CropWidth, geo.CropHeight));
+            var fullRect = new RectangleGeometry(new Rect(0, 0, geo.BoardWidth, geo.BoardHeight));
+            var cropRect = new RectangleGeometry(new Rect(geo.PaperX, geo.PaperY, geo.PaperWidth, geo.PaperHeight));
             return new CombinedGeometry(GeometryCombineMode.Exclude, fullRect, cropRect);
         }
 

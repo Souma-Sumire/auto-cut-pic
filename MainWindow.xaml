@@ -16,9 +16,11 @@
         <core:CropMarginConverter x:Key="CropMarginConverter" />
         <core:CropSizeConverter x:Key="CropSizeConverter" />
         <core:CropMaskConverter x:Key="CropMaskConverter" />
-        <core:PsPhotoCanvasSizeConverter x:Key="PsPhotoCanvasSizeConverter" />
-        <core:PsCropBoxSizeConverter x:Key="PsCropBoxSizeConverter" />
-        <core:PsCropBoxMarginConverter x:Key="PsCropBoxMarginConverter" />
+        <core:PsBoardSizeConverter x:Key="PsBoardSizeConverter" />
+        <core:PsPaperSizeConverter x:Key="PsPaperSizeConverter" />
+        <core:PsPaperMarginConverter x:Key="PsPaperMarginConverter" />
+        <core:PsImgSizeConverter x:Key="PsImgSizeConverter" />
+        <core:PsImgMarginConverter x:Key="PsImgMarginConverter" />
         <core:PsCropMaskConverter x:Key="PsCropMaskConverter" />
         <core:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
@@ -99,7 +101,7 @@
                             HorizontalAlignment="Center" />
                     </StackPanel>
 
-                    <!-- Photoshop 风格照片工作画布（整张照片完整可见，裁切框外部半透明压暗） -->
+                    <!-- 统一工作画板（纯白相纸底板、照片原图、遮罩与 PS 裁切框） -->
                     <Grid
                         x:Name="PhotoCanvas"
                         HorizontalAlignment="Center"
@@ -119,9 +121,9 @@
                             </Style>
                         </Grid.Style>
 
-                        <!-- 照片容器尺寸绑定（按 Uniform 比例最大化自适应主视口） -->
+                        <!-- 画板总尺寸动态绑定 -->
                         <Grid.Width>
-                            <MultiBinding Converter="{StaticResource PsPhotoCanvasSizeConverter}" ConverterParameter="Width">
+                            <MultiBinding Converter="{StaticResource PsBoardSizeConverter}" ConverterParameter="Width">
                                 <Binding Path="ActualWidth" ElementName="MainViewportHost" />
                                 <Binding Path="ActualHeight" ElementName="MainViewportHost" />
                                 <Binding Path="SelectedPhoto.OriginalWidth" />
@@ -131,7 +133,7 @@
                             </MultiBinding>
                         </Grid.Width>
                         <Grid.Height>
-                            <MultiBinding Converter="{StaticResource PsPhotoCanvasSizeConverter}" ConverterParameter="Height">
+                            <MultiBinding Converter="{StaticResource PsBoardSizeConverter}" ConverterParameter="Height">
                                 <Binding Path="ActualWidth" ElementName="MainViewportHost" />
                                 <Binding Path="ActualHeight" ElementName="MainViewportHost" />
                                 <Binding Path="SelectedPhoto.OriginalWidth" />
@@ -141,13 +143,146 @@
                             </MultiBinding>
                         </Grid.Height>
 
-                        <!-- 底层：照片原图完整呈现 -->
+                        <!-- 层级 1：纯白相纸底板（在留白模式下显露真实的相纸纯白边，带立体物理阴影） -->
+                        <Border
+                            Background="#FFFFFF"
+                            BorderBrush="#444444"
+                            BorderThickness="1"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            IsHitTestVisible="False">
+                            <Border.Width>
+                                <MultiBinding Converter="{StaticResource PsPaperSizeConverter}" ConverterParameter="Width">
+                                    <Binding Path="ActualWidth" ElementName="MainViewportHost" />
+                                    <Binding Path="ActualHeight" ElementName="MainViewportHost" />
+                                    <Binding Path="SelectedPhoto.OriginalWidth" />
+                                    <Binding Path="SelectedPhoto.OriginalHeight" />
+                                    <Binding Path="SelectedPhoto.OffsetX" />
+                                    <Binding Path="SelectedPhoto.OffsetY" />
+                                    <Binding Path="SelectedSize" />
+                                    <Binding Path="SelectedMode" />
+                                </MultiBinding>
+                            </Border.Width>
+                            <Border.Height>
+                                <MultiBinding Converter="{StaticResource PsPaperSizeConverter}" ConverterParameter="Height">
+                                    <Binding Path="ActualWidth" ElementName="MainViewportHost" />
+                                    <Binding Path="ActualHeight" ElementName="MainViewportHost" />
+                                    <Binding Path="SelectedPhoto.OriginalWidth" />
+                                    <Binding Path="SelectedPhoto.OriginalHeight" />
+                                    <Binding Path="SelectedPhoto.OffsetX" />
+                                    <Binding Path="SelectedPhoto.OffsetY" />
+                                    <Binding Path="SelectedSize" />
+                                    <Binding Path="SelectedMode" />
+                                </MultiBinding>
+                            </Border.Height>
+                            <Border.Margin>
+                                <MultiBinding Converter="{StaticResource PsPaperMarginConverter}">
+                                    <Binding Path="ActualWidth" ElementName="MainViewportHost" />
+                                    <Binding Path="ActualHeight" ElementName="MainViewportHost" />
+                                    <Binding Path="SelectedPhoto.OriginalWidth" />
+                                    <Binding Path="SelectedPhoto.OriginalHeight" />
+                                    <Binding Path="SelectedPhoto.OffsetX" />
+                                    <Binding Path="SelectedPhoto.OffsetY" />
+                                    <Binding Path="SelectedSize" />
+                                    <Binding Path="SelectedMode" />
+                                </MultiBinding>
+                            </Border.Margin>
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="14" ShadowDepth="3" Direction="270" Color="Black" Opacity="0.55" />
+                            </Border.Effect>
+                        </Border>
+
+                        <!-- 层级 2：照片原图呈现（Fit 模式居中在纯白相纸上，Fill 模式铺满画板） -->
                         <Image
                             Source="{Binding HighResPreview}"
                             Stretch="Fill"
-                            RenderOptions.BitmapScalingMode="HighQuality" />
+                            RenderOptions.BitmapScalingMode="HighQuality"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top">
+                            <Image.Width>
+                                <MultiBinding Converter="{StaticResource PsImgSizeConverter}" ConverterParameter="Width">
+                                    <Binding Path="ActualWidth" ElementName="MainViewportHost" />
+                                    <Binding Path="ActualHeight" ElementName="MainViewportHost" />
+                                    <Binding Path="SelectedPhoto.OriginalWidth" />
+                                    <Binding Path="SelectedPhoto.OriginalHeight" />
+                                    <Binding Path="SelectedPhoto.OffsetX" />
+                                    <Binding Path="SelectedPhoto.OffsetY" />
+                                    <Binding Path="SelectedSize" />
+                                    <Binding Path="SelectedMode" />
+                                </MultiBinding>
+                            </Image.Width>
+                            <Image.Height>
+                                <MultiBinding Converter="{StaticResource PsImgSizeConverter}" ConverterParameter="Height">
+                                    <Binding Path="ActualWidth" ElementName="MainViewportHost" />
+                                    <Binding Path="ActualHeight" ElementName="MainViewportHost" />
+                                    <Binding Path="SelectedPhoto.OriginalWidth" />
+                                    <Binding Path="SelectedPhoto.OriginalHeight" />
+                                    <Binding Path="SelectedPhoto.OffsetX" />
+                                    <Binding Path="SelectedPhoto.OffsetY" />
+                                    <Binding Path="SelectedSize" />
+                                    <Binding Path="SelectedMode" />
+                                </MultiBinding>
+                            </Image.Height>
+                            <Image.Margin>
+                                <MultiBinding Converter="{StaticResource PsImgMarginConverter}">
+                                    <Binding Path="ActualWidth" ElementName="MainViewportHost" />
+                                    <Binding Path="ActualHeight" ElementName="MainViewportHost" />
+                                    <Binding Path="SelectedPhoto.OriginalWidth" />
+                                    <Binding Path="SelectedPhoto.OriginalHeight" />
+                                    <Binding Path="SelectedPhoto.OffsetX" />
+                                    <Binding Path="SelectedPhoto.OffsetY" />
+                                    <Binding Path="SelectedSize" />
+                                    <Binding Path="SelectedMode" />
+                                </MultiBinding>
+                            </Image.Margin>
+                        </Image>
 
-                        <!-- 中层：Photoshop 裁切外部半透明暗色遮罩（裁切区域外压暗，但画面依然清晰可见） -->
+                        <!-- 层级 3：照片外围精细描边（确保浅色照片边缘与纯白相纸白边清晰可辨） -->
+                        <Border
+                            BorderBrush="#35000000"
+                            BorderThickness="1"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            IsHitTestVisible="False">
+                            <Border.Width>
+                                <MultiBinding Converter="{StaticResource PsImgSizeConverter}" ConverterParameter="Width">
+                                    <Binding Path="ActualWidth" ElementName="MainViewportHost" />
+                                    <Binding Path="ActualHeight" ElementName="MainViewportHost" />
+                                    <Binding Path="SelectedPhoto.OriginalWidth" />
+                                    <Binding Path="SelectedPhoto.OriginalHeight" />
+                                    <Binding Path="SelectedPhoto.OffsetX" />
+                                    <Binding Path="SelectedPhoto.OffsetY" />
+                                    <Binding Path="SelectedSize" />
+                                    <Binding Path="SelectedMode" />
+                                </MultiBinding>
+                            </Border.Width>
+                            <Border.Height>
+                                <MultiBinding Converter="{StaticResource PsImgSizeConverter}" ConverterParameter="Height">
+                                    <Binding Path="ActualWidth" ElementName="MainViewportHost" />
+                                    <Binding Path="ActualHeight" ElementName="MainViewportHost" />
+                                    <Binding Path="SelectedPhoto.OriginalWidth" />
+                                    <Binding Path="SelectedPhoto.OriginalHeight" />
+                                    <Binding Path="SelectedPhoto.OffsetX" />
+                                    <Binding Path="SelectedPhoto.OffsetY" />
+                                    <Binding Path="SelectedSize" />
+                                    <Binding Path="SelectedMode" />
+                                </MultiBinding>
+                            </Border.Height>
+                            <Border.Margin>
+                                <MultiBinding Converter="{StaticResource PsImgMarginConverter}">
+                                    <Binding Path="ActualWidth" ElementName="MainViewportHost" />
+                                    <Binding Path="ActualHeight" ElementName="MainViewportHost" />
+                                    <Binding Path="SelectedPhoto.OriginalWidth" />
+                                    <Binding Path="SelectedPhoto.OriginalHeight" />
+                                    <Binding Path="SelectedPhoto.OffsetX" />
+                                    <Binding Path="SelectedPhoto.OffsetY" />
+                                    <Binding Path="SelectedSize" />
+                                    <Binding Path="SelectedMode" />
+                                </MultiBinding>
+                            </Border.Margin>
+                        </Border>
+
+                        <!-- 层级 4：Fill 模式下相纸外部暗色遮罩（Fit 模式下为空，绝不遮挡纯白留白） -->
                         <Path Fill="#99000000" IsHitTestVisible="False">
                             <Path.Data>
                                 <MultiBinding Converter="{StaticResource PsCropMaskConverter}">
@@ -163,13 +298,13 @@
                             </Path.Data>
                         </Path>
 
-                        <!-- 顶层：Photoshop 标准裁切取景框（双层高反差细实线 + 九宫格三分线 + 四角直角手柄 + 四边中点手柄） -->
+                        <!-- 层级 5：Photoshop 裁切取景框（高反差边框 + 九宫格三分线 + 四角直角手柄） -->
                         <Grid
                             HorizontalAlignment="Left"
                             VerticalAlignment="Top"
                             IsHitTestVisible="False">
                             <Grid.Width>
-                                <MultiBinding Converter="{StaticResource PsCropBoxSizeConverter}" ConverterParameter="Width">
+                                <MultiBinding Converter="{StaticResource PsPaperSizeConverter}" ConverterParameter="Width">
                                     <Binding Path="ActualWidth" ElementName="MainViewportHost" />
                                     <Binding Path="ActualHeight" ElementName="MainViewportHost" />
                                     <Binding Path="SelectedPhoto.OriginalWidth" />
@@ -181,7 +316,7 @@
                                 </MultiBinding>
                             </Grid.Width>
                             <Grid.Height>
-                                <MultiBinding Converter="{StaticResource PsCropBoxSizeConverter}" ConverterParameter="Height">
+                                <MultiBinding Converter="{StaticResource PsPaperSizeConverter}" ConverterParameter="Height">
                                     <Binding Path="ActualWidth" ElementName="MainViewportHost" />
                                     <Binding Path="ActualHeight" ElementName="MainViewportHost" />
                                     <Binding Path="SelectedPhoto.OriginalWidth" />
@@ -193,7 +328,7 @@
                                 </MultiBinding>
                             </Grid.Height>
                             <Grid.Margin>
-                                <MultiBinding Converter="{StaticResource PsCropBoxMarginConverter}">
+                                <MultiBinding Converter="{StaticResource PsPaperMarginConverter}">
                                     <Binding Path="ActualWidth" ElementName="MainViewportHost" />
                                     <Binding Path="ActualHeight" ElementName="MainViewportHost" />
                                     <Binding Path="SelectedPhoto.OriginalWidth" />
@@ -223,12 +358,12 @@
                                 </Grid.RowDefinitions>
 
                                 <!-- 纵向两条三等分线 -->
-                                <Border Grid.Column="0" BorderBrush="#60FFFFFF" BorderThickness="0,0,1,0" />
-                                <Border Grid.Column="1" BorderBrush="#60FFFFFF" BorderThickness="0,0,1,0" />
+                                <Border Grid.Column="0" BorderBrush="#50FFFFFF" BorderThickness="0,0,1,0" />
+                                <Border Grid.Column="1" BorderBrush="#50FFFFFF" BorderThickness="0,0,1,0" />
 
                                 <!-- 横向两条三等分线 -->
-                                <Border Grid.Row="0" Grid.ColumnSpan="3" BorderBrush="#60FFFFFF" BorderThickness="0,0,0,1" />
-                                <Border Grid.Row="1" Grid.ColumnSpan="3" BorderBrush="#60FFFFFF" BorderThickness="0,0,0,1" />
+                                <Border Grid.Row="0" Grid.ColumnSpan="3" BorderBrush="#50FFFFFF" BorderThickness="0,0,0,1" />
+                                <Border Grid.Row="1" Grid.ColumnSpan="3" BorderBrush="#50FFFFFF" BorderThickness="0,0,0,1" />
                             </Grid>
 
                             <!-- PS 风格四角直角折角控制手柄 -->
@@ -468,7 +603,7 @@
                                         IsChecked="{Binding SelectedMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Fit}" />
                                 </StackPanel>
                                 <TextBlock
-                                    Text="Fill 裁切框内保持原亮，裁切区暗化可见；Fit 保留全景。"
+                                    Text="Fill 填满相纸且无白边；Fit 呈现相纸纯白留白边框。"
                                     FontSize="11"
                                     Foreground="#666666"
                                     TextWrapping="Wrap" />

@@ -37,6 +37,9 @@ public partial class MainWindow : Window
     {
         if (e.LeftButton == MouseButtonState.Pressed && _viewModel.SelectedPhoto != null)
         {
+            if (_viewModel.SelectedMode == CutMode.Fit)
+                return;
+
             _isDragging = true;
             _dragStartPoint = e.GetPosition(this);
             _dragStartOffsetX = _viewModel.SelectedPhoto.OffsetX;
