@@ -195,6 +195,42 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void SelectFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "选择照片文件夹（支持自动递归扫描所有子目录）"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            var allFiles = GetAllFiles(new[] { dialog.FolderName }).ToArray();
+            if (allFiles.Length > 0)
+            {
+                await _viewModel.LoadFiles(allFiles);
+            }
+        }
+    }
+
+    private async void SelectFiles_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "选择单张或多张照片文件",
+            Multiselect = true,
+            Filter = "支持的照片格式 (*.jpg;*.jpeg;*.png;*.webp;*.heic;*.zip;*.tiff;*.bmp)|*.jpg;*.jpeg;*.png;*.webp;*.heic;*.zip;*.tiff;*.bmp|所有文件 (*.*)|*.*"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            var allFiles = GetAllFiles(dialog.FileNames).ToArray();
+            if (allFiles.Length > 0)
+            {
+                await _viewModel.LoadFiles(allFiles);
+            }
+        }
+    }
+
     private static IEnumerable<string> GetAllFiles(string[] paths)
     {
         var extensions = new[]

@@ -56,51 +56,6 @@
                 BorderThickness="0,0,1,1"
                 ClipToBounds="True">
                 <Grid>
-                    <!-- 空状态引导提示 -->
-                    <StackPanel
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        IsHitTestVisible="False">
-                        <StackPanel.Style>
-                            <Style TargetType="StackPanel">
-                                <Setter Property="Visibility" Value="Collapsed" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Photos.Count}" Value="0">
-                                        <Setter Property="Visibility" Value="Visible" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </StackPanel.Style>
-                        <Border
-                            Width="80"
-                            Height="80"
-                            Margin="0,0,0,15"
-                            BorderBrush="#444444"
-                            BorderThickness="2"
-                            CornerRadius="8"
-                            HorizontalAlignment="Center">
-                            <TextBlock
-                                Text="+"
-                                FontSize="48"
-                                FontWeight="Light"
-                                Foreground="#666666"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center" />
-                        </Border>
-                        <TextBlock
-                            Text="拖拽单张照片或文件夹至此导入"
-                            FontSize="16"
-                            FontWeight="SemiBold"
-                            Foreground="#888888"
-                            HorizontalAlignment="Center" />
-                        <TextBlock
-                            Margin="0,6,0,0"
-                            Text="支持 JPG, PNG, WEBP, HEIC, TIFF, ZIP 格式深度递归"
-                            FontSize="12"
-                            Foreground="#555555"
-                            HorizontalAlignment="Center" />
-                    </StackPanel>
-
                     <!-- 统一工作画板（纯白相纸底板、照片原图、遮罩与 PS 裁切框） -->
                     <Grid
                         x:Name="PhotoCanvas"
@@ -541,12 +496,32 @@
                 <!-- 上部属性控制 -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <TextBlock
-                            Margin="0,0,0,16"
-                            FontSize="15"
-                            FontWeight="Bold"
-                            Foreground="#EEEEEE"
-                            Text="冲印属性面板" />
+                        <!-- 标题栏与快速添加按钮 -->
+                        <Grid Margin="0,0,0,16">
+                            <TextBlock
+                                FontSize="15"
+                                FontWeight="Bold"
+                                Foreground="#EEEEEE"
+                                VerticalAlignment="Center"
+                                Text="冲印属性面板" />
+                            <Button
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Background="#333333"
+                                Foreground="#CCCCCC"
+                                BorderThickness="0"
+                                Padding="8,4"
+                                Cursor="Hand"
+                                FontSize="11"
+                                Click="SelectFolder_Click"
+                                Content="+ 导入">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="3" />
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                        </Grid>
 
                         <!-- 模块 1：输出规格 -->
                         <Border
@@ -661,5 +636,160 @@
                 </ScrollViewer>
             </DockPanel>
         </Border>
+
+        <!--  全屏导入引导层 (当未导入照片时占满整个视口)  -->
+        <Grid
+            Grid.Column="0"
+            Grid.ColumnSpan="2"
+            Background="#181818">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Photos.Count}" Value="0">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+
+            <!-- 居中全屏大面积投递卡片 -->
+            <Border
+                MaxWidth="880"
+                MaxHeight="580"
+                Margin="48"
+                Background="#1E1E1E"
+                BorderBrush="#333333"
+                BorderThickness="2"
+                CornerRadius="12"
+                Padding="40">
+                <Grid>
+                    <!-- 虚线轮廓装饰 -->
+                    <Rectangle
+                        Stroke="#3E3E3E"
+                        StrokeThickness="1.5"
+                        StrokeDashArray="6 4"
+                        RadiusX="10"
+                        RadiusY="10"
+                        IsHitTestVisible="False" />
+
+                    <!-- 引导主体内容 -->
+                    <StackPanel
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                        <!-- 大号图标 -->
+                        <Border
+                            Width="88"
+                            Height="88"
+                            Margin="0,0,0,24"
+                            Background="#252526"
+                            BorderBrush="#383838"
+                            BorderThickness="1"
+                            CornerRadius="44"
+                            HorizontalAlignment="Center">
+                            <Path
+                                Data="M 28,44 L 60,44 M 44,28 L 44,60"
+                                Stroke="#0078D4"
+                                StrokeThickness="3.5"
+                                StrokeStartLineCap="Round"
+                                StrokeEndLineCap="Round"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                        </Border>
+
+                        <!-- 主标题 -->
+                        <TextBlock
+                            Text="拖拽照片或文件夹至此开始"
+                            FontSize="26"
+                            FontWeight="Bold"
+                            Foreground="#FFFFFF"
+                            HorizontalAlignment="Center" />
+
+                        <!-- 副标题说明 -->
+                        <TextBlock
+                            Margin="0,10,0,28"
+                            Text="自动深度递归扫描所有子目录，原生兼容 iOS HEIC、Live Photo 压缩包及全画幅相机原图"
+                            FontSize="13"
+                            Foreground="#888888"
+                            HorizontalAlignment="Center" />
+
+                        <!-- 快捷操作按钮组 -->
+                        <StackPanel
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,32">
+                            <Button
+                                Width="160"
+                                Height="42"
+                                Margin="0,0,16,0"
+                                Background="#0078D4"
+                                Foreground="#FFFFFF"
+                                FontSize="14"
+                                FontWeight="SemiBold"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                Click="SelectFolder_Click"
+                                Content="导入照片文件夹">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6" />
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                            <Button
+                                Width="160"
+                                Height="42"
+                                Background="#2A2A2A"
+                                Foreground="#CCCCCC"
+                                FontSize="14"
+                                FontWeight="SemiBold"
+                                BorderBrush="#444444"
+                                BorderThickness="1"
+                                Cursor="Hand"
+                                Click="SelectFiles_Click"
+                                Content="添加照片文件">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6" />
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- 支持格式徽标平铺列表 -->
+                        <StackPanel
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,16">
+                            <Border Background="#252526" BorderBrush="#353535" BorderThickness="1" CornerRadius="3" Padding="8,3" Margin="4,0">
+                                <TextBlock Text="JPG / JPEG" FontSize="11" Foreground="#AAAAAA" />
+                            </Border>
+                            <Border Background="#252526" BorderBrush="#353535" BorderThickness="1" CornerRadius="3" Padding="8,3" Margin="4,0">
+                                <TextBlock Text="PNG" FontSize="11" Foreground="#AAAAAA" />
+                            </Border>
+                            <Border Background="#252526" BorderBrush="#353535" BorderThickness="1" CornerRadius="3" Padding="8,3" Margin="4,0">
+                                <TextBlock Text="HEIC (Apple)" FontSize="11" Foreground="#AAAAAA" />
+                            </Border>
+                            <Border Background="#252526" BorderBrush="#353535" BorderThickness="1" CornerRadius="3" Padding="8,3" Margin="4,0">
+                                <TextBlock Text="ZIP (Live Photo)" FontSize="11" Foreground="#AAAAAA" />
+                            </Border>
+                            <Border Background="#252526" BorderBrush="#353535" BorderThickness="1" CornerRadius="3" Padding="8,3" Margin="4,0">
+                                <TextBlock Text="WEBP" FontSize="11" Foreground="#AAAAAA" />
+                            </Border>
+                            <Border Background="#252526" BorderBrush="#353535" BorderThickness="1" CornerRadius="3" Padding="8,3" Margin="4,0">
+                                <TextBlock Text="TIFF / BMP" FontSize="11" Foreground="#AAAAAA" />
+                            </Border>
+                        </StackPanel>
+
+                        <!-- 底部冲印技术标准小字 -->
+                        <TextBlock
+                            Text="工业级 300 DPI 严格像素转换  •  基于 Parallel.ForEach 多核极速并发导出"
+                            FontSize="11"
+                            Foreground="#555555"
+                            HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>
