@@ -410,50 +410,41 @@ namespace AutoCutPic.ViewModels
             LoadingProgress = 0;
             LoadingStatusText = $"正在导入照片 (0/{allFiles.Length})...";
             Photos.Clear();
-            SelectedPhoto = null;
-            HighResPreview = null;
 
-            int total = allFiles.Length;
+            var photoList = allFiles.Select(f => new PhotoViewModel(f)).ToList();
+            foreach (var p in photoList)
+            {
+                Photos.Add(p);
+            }
+            SelectedPhoto = Photos.FirstOrDefault();
+
+            int total = photoList.Count;
             int loaded = 0;
 
             await Task.Run(() =>
             {
                 var options = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
-                Parallel.ForEach(allFiles, options, file =>
+                Parallel.ForEach(photoList, options, photo =>
                 {
-                    var photo = new PhotoViewModel(file);
                     LoadThumbnail(photo);
 
                     int current = Interlocked.Increment(ref loaded);
                     double pct = (double)current / total * 100.0;
-                    string name = Path.GetFileName(file);
+                    string name = Path.GetFileName(photo.FilePath);
 
                     var dispatcher = System.Windows.Application.Current?.Dispatcher;
                     if (dispatcher != null)
                     {
                         dispatcher.InvokeAsync(() =>
                         {
-                            Photos.Add(photo);
-                            if (SelectedPhoto == null)
-                            {
-                                SelectedPhoto = photo;
-                            }
                             LoadingProgress = pct;
                             LoadingStatusText = $"正在载入第 {current}/{total} 张 ({pct:F0}%): {name}";
                         }, System.Windows.Threading.DispatcherPriority.Background);
                     }
                     else
                     {
-                        lock (Photos)
-                        {
-                            Photos.Add(photo);
-                            if (SelectedPhoto == null)
-                            {
-                                SelectedPhoto = photo;
-                            }
-                            LoadingProgress = pct;
-                            LoadingStatusText = $"正在载入第 {current}/{total} 张 ({pct:F0}%): {name}";
-                        }
+                        LoadingProgress = pct;
+                        LoadingStatusText = $"正在载入第 {current}/{total} 张 ({pct:F0}%): {name}";
                     }
                 });
             });

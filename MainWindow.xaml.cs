@@ -147,6 +147,14 @@ public partial class MainWindow : Window
             }
         }
 
+        // 空格键 / 快捷翻页：Space 翻下一张 (Shift+Space 翻上一张)
+        if (e.Key == Key.Space)
+        {
+            SelectRelativePhoto(isShift ? -1 : 1);
+            e.Handled = true;
+            return;
+        }
+
         // Q/E 快捷切换上一张/下一张
         if (e.Key == Key.Q)
         {
@@ -213,7 +221,7 @@ public partial class MainWindow : Window
                 e.Handled = true;
                 break;
 
-            case Key.Space:
+            case Key.F:
                 var targetMode = (_viewModel.SelectedPhoto?.Mode ?? CutMode.Fill) == CutMode.Fill
                     ? CutMode.Fit
                     : CutMode.Fill;
