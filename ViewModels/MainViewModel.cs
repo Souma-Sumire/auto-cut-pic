@@ -25,6 +25,12 @@ namespace AutoCutPic.ViewModels
         Center
     }
 
+    public enum ViewMode
+    {
+        Single,
+        Batch
+    }
+
     public class PhotoViewModel : INotifyPropertyChanged
     {
         private double _offsetX;
@@ -251,6 +257,21 @@ namespace AutoCutPic.ViewModels
             }
         }
 
+        private ViewMode _currentViewMode = ViewMode.Single;
+
+        public ViewMode CurrentViewMode
+        {
+            get => _currentViewMode;
+            set
+            {
+                if (_currentViewMode != value)
+                {
+                    _currentViewMode = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         private void OnSelectedPhotoChanged(PhotoViewModel? photo)
         {
             _highResCts?.Cancel();
@@ -328,11 +349,27 @@ namespace AutoCutPic.ViewModels
 
         public ICommand ExportCommand { get; }
         public ICommand CancelExportCommand { get; }
+        public ICommand SwitchViewModeCommand { get; }
+
+        public void ToggleViewMode() =>
+            CurrentViewMode = CurrentViewMode == ViewMode.Single ? ViewMode.Batch : ViewMode.Single;
 
         public MainViewModel(IImageProcessor? imageProcessor = null)
         {
             _imageProcessor = imageProcessor ?? ImageProcessor.Instance;
             _selectedSize = Sizes.FirstOrDefault(s => s.Name == "6寸") ?? PhotoSize.Inch6;
+
+            SwitchViewModeCommand = new RelayCommand(p =>
+            {
+                if (p is ViewMode vm)
+                {
+                    CurrentViewMode = vm;
+                }
+                else if (p is string s && Enum.TryParse<ViewMode>(s, true, out var parsed))
+                {
+                    CurrentViewMode = parsed;
+                }
+            });
 
             ExportCommand = new RelayCommand(
                 async _ => await ExecuteExport(),

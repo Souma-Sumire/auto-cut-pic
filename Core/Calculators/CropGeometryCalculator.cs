@@ -118,5 +118,72 @@ namespace AutoCutPic.Core.Calculators
                 marginTop
             );
         }
+
+        /// <summary>
+        /// 计算批量预览网格卡片中相纸视口大小与照片裁切平移布局
+        /// </summary>
+        public static BatchCardLayout CalculateBatchCardLayout(
+            double cardBoxWidth,
+            double cardBoxHeight,
+            int photoWidth,
+            int photoHeight,
+            PhotoSize targetSize,
+            CutMode mode,
+            double offsetX = 0,
+            double offsetY = 0)
+        {
+            if (cardBoxWidth <= 10 || cardBoxHeight <= 10 || photoWidth <= 0 || photoHeight <= 0 || targetSize == null)
+            {
+                return new BatchCardLayout(cardBoxWidth, cardBoxHeight, cardBoxWidth, cardBoxHeight, 0, 0, false);
+            }
+
+            var targetPaper = CalculateTargetPaperDimensions(targetSize, photoWidth, photoHeight);
+            double targetAR = targetPaper.AspectRatio;
+            double photoAR = (double)photoWidth / photoHeight;
+
+            double paperScale = Math.Min(cardBoxWidth / targetPaper.Width, cardBoxHeight / targetPaper.Height);
+            double paperW = Math.Max(10, Math.Round(targetPaper.Width * paperScale));
+            double paperH = Math.Max(10, Math.Round(targetPaper.Height * paperScale));
+
+            if (mode == CutMode.Fit)
+            {
+                double imgScale = Math.Min(paperW / photoWidth, paperH / photoHeight);
+                double imgW = Math.Max(5, Math.Round(photoWidth * imgScale));
+                double imgH = Math.Max(5, Math.Round(photoHeight * imgScale));
+                double left = (paperW - imgW) / 2.0;
+                double top = (paperH - imgH) / 2.0;
+
+                return new BatchCardLayout(paperW, paperH, imgW, imgH, left, top, true);
+            }
+            else
+            {
+                double imgW;
+                double imgH;
+                double left;
+                double top;
+
+                double clampedOffsetX = Math.Clamp(offsetX, -0.5, 0.5);
+                double clampedOffsetY = Math.Clamp(offsetY, -0.5, 0.5);
+
+                if (photoAR > targetAR)
+                {
+                    imgH = paperH;
+                    imgW = Math.Round(paperH * photoAR);
+                    double excessW = imgW - paperW;
+                    left = -((excessW / 2.0) + (clampedOffsetX * excessW));
+                    top = 0;
+                }
+                else
+                {
+                    imgW = paperW;
+                    imgH = Math.Round(paperW / photoAR);
+                    double excessH = imgH - paperH;
+                    left = 0;
+                    top = -((excessH / 2.0) + (clampedOffsetY * excessH));
+                }
+
+                return new BatchCardLayout(paperW, paperH, imgW, imgH, left, top, false);
+            }
+        }
     }
 }

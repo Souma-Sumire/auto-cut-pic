@@ -96,8 +96,31 @@ public partial class MainWindow : Window
         }
     }
 
+    private void BatchGalleryList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (_viewModel.SelectedPhoto != null)
+        {
+            _viewModel.CurrentViewMode = ViewMode.Single;
+        }
+    }
+
     private void MainWindow_KeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.G)
+        {
+            _viewModel.ToggleViewMode();
+            return;
+        }
+
+        if (_viewModel.CurrentViewMode == ViewMode.Batch)
+        {
+            if ((e.Key == Key.Enter || e.Key == Key.E) && _viewModel.SelectedPhoto != null)
+            {
+                _viewModel.CurrentViewMode = ViewMode.Single;
+                return;
+            }
+        }
+
         var filmstrip = (ListBox)FindName("FilmstripList");
         var selectedItems = (System.Collections.IList)filmstrip.SelectedItems;
 

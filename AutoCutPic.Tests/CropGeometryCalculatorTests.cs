@@ -169,5 +169,71 @@ namespace AutoCutPic.Tests
                 Assert.Equal(1000, crop.X);
             }
         }
+
+        [Fact]
+        public void CalculateBatchCardLayout_FitMode_ShouldScaleAndCenterWithinPaper()
+        {
+            var size = PhotoSize.Inch6;
+            var layout = CropGeometryCalculator.CalculateBatchCardLayout(
+                cardBoxWidth: 200,
+                cardBoxHeight: 140,
+                photoWidth: 1600,
+                photoHeight: 900,
+                targetSize: size,
+                mode: CutMode.Fit
+            );
+
+            Assert.True(layout.IsFit);
+            Assert.True(layout.PaperWidth > 0 && layout.PaperWidth <= 200);
+            Assert.True(layout.PaperHeight > 0 && layout.PaperHeight <= 140);
+            Assert.True(layout.ImageWidth <= layout.PaperWidth);
+            Assert.True(layout.ImageHeight <= layout.PaperHeight);
+            Assert.True(layout.MarginLeft >= 0);
+            Assert.True(layout.MarginTop >= 0);
+        }
+
+        [Fact]
+        public void CalculateBatchCardLayout_FillMode_ShouldSpanPaperAndClampOffsets()
+        {
+            var size = PhotoSize.Inch6;
+            // 贴最左端
+            var layoutLeft = CropGeometryCalculator.CalculateBatchCardLayout(
+                cardBoxWidth: 200,
+                cardBoxHeight: 140,
+                photoWidth: 2000,
+                photoHeight: 1000,
+                targetSize: size,
+                mode: CutMode.Fill,
+                offsetX: -0.5,
+                offsetY: 0
+            );
+
+            Assert.False(layoutLeft.IsFit);
+            Assert.True(layoutLeft.PaperWidth > 0);
+            Assert.True(layoutLeft.ImageWidth >= layoutLeft.PaperWidth);
+            Assert.Equal(0, layoutLeft.MarginLeft, 1);
+
+            // 贴最右端 (offsetX = 0.5) 且 MarginLeft 必须为负数（左移图片露右侧）
+            var layoutRight = CropGeometryCalculator.CalculateBatchCardLayout(
+                cardBoxWidth: 200,
+                cardBoxHeight: 140,
+                photoWidth: 2000,
+                photoHeight: 1000,
+                targetSize: size,
+                mode: CutMode.Fill,
+                offsetX: 0.5,
+                offsetY: 0
+            );
+
+            Assert.True(layoutRight.MarginLeft < 0);
+        }
+
+        [Fact]
+        public void CalculateBatchCardLayout_InvalidInputs_ShouldReturnSafeDefaults()
+        {
+            var layout = CropGeometryCalculator.CalculateBatchCardLayout(0, 0, 0, 0, PhotoSize.Inch6, CutMode.Fill);
+            Assert.True(layout.PaperWidth >= 0);
+            Assert.True(layout.PaperHeight >= 0);
+        }
     }
 }

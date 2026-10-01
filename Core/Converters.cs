@@ -165,9 +165,9 @@ namespace AutoCutPic.Core
             double targetAR = targetPaper.AspectRatio;
             double photoAR = (double)origW / origH;
 
-            // 预留工作台四周安全边距 60px
-            double availW = Math.Max(50, viewportW - 60);
-            double availH = Math.Max(50, viewportH - 60);
+            // 预留工作台四周充足安全边距 120px，确保画面呼吸感与专业暗房视野，杜绝贴边压迫
+            double availW = Math.Max(50, viewportW - 120);
+            double availH = Math.Max(50, viewportH - 120);
 
             double boardW, boardH, paperW, paperH, paperX, paperY, imgW, imgH, imgX, imgY, excessW, excessH;
 
@@ -532,5 +532,78 @@ namespace AutoCutPic.Core
             }
             return Binding.DoNothing;
         }
+    }
+
+    public class BatchCardPlacementConverter : IMultiValueConverter
+    {
+        public object Convert(
+            object[] values,
+            Type targetType,
+            object parameter,
+            CultureInfo culture
+        )
+        {
+            if (values == null || values.Length < 6)
+                return GetDefault(parameter);
+
+            for (int i = 0; i < 6; i++)
+            {
+                if (values[i] == DependencyProperty.UnsetValue || values[i] == null)
+                    return GetDefault(parameter);
+            }
+
+            int photoW = values[0] is int pw ? pw : 0;
+            int photoH = values[1] is int ph ? ph : 0;
+            PhotoSize? size = values[2] as PhotoSize;
+            CutMode mode = values[3] is CutMode m ? m : CutMode.Fill;
+            double offsetX = values[4] is double ox ? ox : 0.0;
+            double offsetY = values[5] is double oy ? oy : 0.0;
+
+            double cardW = 190.0;
+            double cardH = 135.0;
+
+            if (values.Length > 7 && values[6] is double cw && cw > 10 && values[7] is double ch && ch > 10)
+            {
+                cardW = cw;
+                cardH = ch;
+            }
+
+            if (photoW <= 0 || photoH <= 0 || size == null)
+                return GetDefault(parameter);
+
+            var layout = AutoCutPic.Core.Calculators.CropGeometryCalculator.CalculateBatchCardLayout(
+                cardW,
+                cardH,
+                photoW,
+                photoH,
+                size,
+                mode,
+                offsetX,
+                offsetY
+            );
+
+            string param = parameter?.ToString() ?? "";
+            return param switch
+            {
+                "PaperWidth" => layout.PaperWidth,
+                "PaperHeight" => layout.PaperHeight,
+                "ImageWidth" => layout.ImageWidth,
+                "ImageHeight" => layout.ImageHeight,
+                "ImageMargin" => new Thickness(layout.MarginLeft, layout.MarginTop, 0, 0),
+                _ => 0.0
+            };
+        }
+
+        private static object GetDefault(object? parameter)
+        {
+            return parameter?.ToString() == "ImageMargin" ? new Thickness(0) : 0.0;
+        }
+
+        public object[] ConvertBack(
+            object value,
+            Type[] targetTypes,
+            object parameter,
+            CultureInfo culture
+        ) => throw new NotImplementedException();
     }
 }

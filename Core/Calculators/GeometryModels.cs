@@ -25,4 +25,17 @@ namespace AutoCutPic.Core.Calculators
         int MarginLeft,
         int MarginTop
     );
+
+    /// <summary>
+    /// 表示批量网格预览卡片中相纸视口与照片的布局与平移位置
+    /// </summary>
+    public readonly record struct BatchCardLayout(
+        double PaperWidth,
+        double PaperHeight,
+        double ImageWidth,
+        double ImageHeight,
+        double MarginLeft,
+        double MarginTop,
+        bool IsFit
+    );
 }
