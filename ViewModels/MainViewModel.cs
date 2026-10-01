@@ -400,7 +400,7 @@ namespace AutoCutPic.ViewModels
             }
         }
 
-        private double _galleryCardWidth = 140.0;
+        private double _galleryCardWidth = 130.0;
         public double GalleryCardWidth
         {
             get => _galleryCardWidth;
@@ -419,10 +419,10 @@ namespace AutoCutPic.ViewModels
             }
         }
 
-        public double GalleryCardHeight => _galleryCardWidth + 40.0;
-        public double GalleryImageContainerHeight => Math.Max(40.0, _galleryCardWidth - 44.0);
-        public double GalleryCardBoxWidth => Math.Max(30.0, _galleryCardWidth - 12.0);
-        public double GalleryCardBoxHeight => Math.Max(30.0, GalleryImageContainerHeight - 8.0);
+        public double GalleryImageContainerHeight => Math.Round(_galleryCardWidth * 0.72);
+        public double GalleryCardBoxWidth => Math.Max(20.0, _galleryCardWidth - 12.0);
+        public double GalleryCardBoxHeight => Math.Max(20.0, GalleryImageContainerHeight - 4.0);
+        public double GalleryCardHeight => GalleryImageContainerHeight + 38.0;
 
         private ViewMode _currentViewMode = ViewMode.Single;
 

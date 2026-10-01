@@ -734,6 +734,7 @@
                         KeyboardNavigation.DirectionalNavigation="None"
                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                        ScrollViewer.CanContentScroll="False"
                         PreviewMouseDown="BatchGalleryList_PreviewMouseDown"
                         PreviewMouseWheel="BatchGalleryList_PreviewMouseWheel">
                         <ListBox.ItemsPanel>
@@ -758,7 +759,7 @@
                         </ListBox.ItemContainerStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <!-- 资源管理器风格平铺照片卡片 (支持动态无级缩放) -->
+                                <!-- 资源管理器风格平铺照片卡片 (紧凑饱满自适应) -->
                                 <Border
                                     Width="{Binding DataContext.GalleryCardWidth, RelativeSource={RelativeSource AncestorType=Window}}"
                                     Height="{Binding DataContext.GalleryCardHeight, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -819,13 +820,13 @@
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="{Binding DataContext.GalleryImageContainerHeight, RelativeSource={RelativeSource AncestorType=Window}}" />
-                                            <RowDefinition Height="38" />
+                                            <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
 
-                                        <!-- 照片视口展示区 (深暗色背景) -->
+                                        <!-- 照片视口展示区 (自然居中) -->
                                         <Border
                                             Grid.Row="0"
-                                            Background="#111111"
+                                            Background="Transparent"
                                             CornerRadius="3,3,0,0"
                                             ClipToBounds="True">
                                             <Grid HorizontalAlignment="Center" VerticalAlignment="Center">

@@ -244,28 +244,28 @@ namespace AutoCutPic.Tests
         {
             var vm = new MainViewModel();
 
-            // 默认 140
-            Assert.Equal(140.0, vm.GalleryCardWidth);
-            Assert.Equal(180.0, vm.GalleryCardHeight);
-            Assert.Equal(96.0, vm.GalleryImageContainerHeight);
+            // 默认 130
+            Assert.Equal(130.0, vm.GalleryCardWidth);
+            Assert.Equal(132.0, vm.GalleryCardHeight);
+            Assert.Equal(94.0, vm.GalleryImageContainerHeight);
 
             // 小于最小值 80 钳制为 80
             vm.GalleryCardWidth = 50.0;
             Assert.Equal(80.0, vm.GalleryCardWidth);
-            Assert.Equal(80.0 + 40.0, vm.GalleryCardHeight);
-            Assert.Equal(40.0, vm.GalleryImageContainerHeight);
+            Assert.Equal(96.0, vm.GalleryCardHeight);
+            Assert.Equal(58.0, vm.GalleryImageContainerHeight);
 
             // 大于最大值 300 钳制为 300
             vm.GalleryCardWidth = 500.0;
             Assert.Equal(300.0, vm.GalleryCardWidth);
-            Assert.Equal(300.0 + 40.0, vm.GalleryCardHeight);
-            Assert.Equal(300.0 - 44.0, vm.GalleryImageContainerHeight);
+            Assert.Equal(254.0, vm.GalleryCardHeight);
+            Assert.Equal(216.0, vm.GalleryImageContainerHeight);
 
             // 正常赋值
             vm.GalleryCardWidth = 200.0;
             Assert.Equal(200.0, vm.GalleryCardWidth);
-            Assert.Equal(240.0, vm.GalleryCardHeight);
-            Assert.Equal(156.0, vm.GalleryImageContainerHeight);
+            Assert.Equal(182.0, vm.GalleryCardHeight);
+            Assert.Equal(144.0, vm.GalleryImageContainerHeight);
         }
 
         [Fact]

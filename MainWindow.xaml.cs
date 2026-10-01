@@ -196,7 +196,7 @@ public partial class MainWindow : Window
         // Ctrl + 0: 恢复默认缩放尺寸
         if (isCtrl && (key == Key.D0 || key == Key.NumPad0))
         {
-            _viewModel.GalleryCardWidth = 140.0;
+            _viewModel.GalleryCardWidth = 130.0;
             e.Handled = true;
             return;
         }
@@ -482,6 +482,16 @@ public partial class MainWindow : Window
         {
             double step = e.Delta > 0 ? 12.0 : -12.0;
             _viewModel.GalleryCardWidth = Math.Clamp(_viewModel.GalleryCardWidth + step, 80.0, 300.0);
+            e.Handled = true;
+            return;
+        }
+
+        // 普通滚轮：严格按 Windows 标准垂直平滑滚动（向后拉滚轮向下滚动查看后续照片，向前推滚轮向上滚动）
+        _galleryScrollViewer ??= FindVisualChild<ScrollViewer>((DependencyObject)sender);
+        if (_galleryScrollViewer != null)
+        {
+            double scrollDelta = -e.Delta * 0.6;
+            _galleryScrollViewer.ScrollToVerticalOffset(_galleryScrollViewer.VerticalOffset + scrollDelta);
             e.Handled = true;
         }
     }
