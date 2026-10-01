@@ -537,10 +537,8 @@
                         Text="{Binding StatusText}" />
                 </StackPanel>
 
-                <!-- 上部属性控制 -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <!-- 标题栏与快速添加按钮 -->
                         <Grid Margin="0,0,0,16">
                             <TextBlock
                                 FontSize="15"
@@ -567,7 +565,6 @@
                             </Button>
                         </Grid>
 
-                        <!-- 模块 1：输出规格 -->
                         <Border
                             Background="#1E1E1E"
                             BorderBrush="#303030"
@@ -597,7 +594,6 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- 模块 2：裁切模式 -->
                         <Border
                             Background="#1E1E1E"
                             BorderBrush="#303030"
@@ -629,7 +625,6 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- 模块 3：快捷键工作流指南 -->
                         <Border
                             Background="#1A1A1A"
                             BorderBrush="#2C2C2C"
@@ -717,11 +712,9 @@
                         RadiusY="10"
                         IsHitTestVisible="False" />
 
-                    <!-- 引导主体内容 -->
                     <StackPanel
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center">
-                        <!-- 大号图标 -->
                         <Border
                             Width="88"
                             Height="88"
@@ -741,7 +734,6 @@
                                 VerticalAlignment="Center" />
                         </Border>
 
-                        <!-- 主标题 -->
                         <TextBlock
                             Text="拖拽照片或文件夹至此开始"
                             FontSize="26"
@@ -749,7 +741,6 @@
                             Foreground="#FFFFFF"
                             HorizontalAlignment="Center" />
 
-                        <!-- 副标题说明 -->
                         <TextBlock
                             Margin="0,10,0,28"
                             Text="自动深度递归扫描所有子目录，原生兼容 iOS HEIC、Live Photo 压缩包及全画幅相机原图"
@@ -757,7 +748,6 @@
                             Foreground="#888888"
                             HorizontalAlignment="Center" />
 
-                        <!-- 快捷操作按钮组 -->
                         <StackPanel
                             Orientation="Horizontal"
                             HorizontalAlignment="Center"
@@ -800,7 +790,6 @@
                             </Button>
                         </StackPanel>
 
-                        <!-- 支持格式徽标平铺列表 -->
                         <StackPanel
                             Orientation="Horizontal"
                             HorizontalAlignment="Center"
@@ -825,7 +814,6 @@
                             </Border>
                         </StackPanel>
 
-                        <!-- 底部冲印技术标准小字 -->
                         <TextBlock
                             Text="工业级 300 DPI 严格像素转换  •  基于 Parallel.ForEach 多核极速并发导出"
                             FontSize="11"

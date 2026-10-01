@@ -364,27 +364,20 @@ namespace AutoCutPic.ViewModels
 
         public void AlignBatch(IEnumerable items, AlignmentDirection direction)
         {
+            (double? ox, double? oy) target = direction switch
+            {
+                AlignmentDirection.Top => (null, -0.5),
+                AlignmentDirection.Bottom => (null, 0.5),
+                AlignmentDirection.Left => (-0.5, null),
+                AlignmentDirection.Right => (0.5, null),
+                AlignmentDirection.Center => (0.0, 0.0),
+                _ => (null, null)
+            };
+
             foreach (PhotoViewModel photo in items)
             {
-                switch (direction)
-                {
-                    case AlignmentDirection.Top:
-                        photo.OffsetY = -0.5;
-                        break;
-                    case AlignmentDirection.Bottom:
-                        photo.OffsetY = 0.5;
-                        break;
-                    case AlignmentDirection.Left:
-                        photo.OffsetX = -0.5;
-                        break;
-                    case AlignmentDirection.Right:
-                        photo.OffsetX = 0.5;
-                        break;
-                    case AlignmentDirection.Center:
-                        photo.OffsetX = 0.0;
-                        photo.OffsetY = 0.0;
-                        break;
-                }
+                if (target.ox is double x) photo.OffsetX = x;
+                if (target.oy is double y) photo.OffsetY = y;
             }
         }
 
