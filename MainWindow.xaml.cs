@@ -30,7 +30,7 @@ public partial class MainWindow : Window
 
         AllowDrop = true;
         Drop += MainWindow_Drop;
-        KeyDown += MainWindow_KeyDown;
+        PreviewKeyDown += MainWindow_PreviewKeyDown;
         Closed += (_, _) => Application.Current?.Shutdown();
     }
 
@@ -104,11 +104,12 @@ public partial class MainWindow : Window
         }
     }
 
-    private void MainWindow_KeyDown(object sender, KeyEventArgs e)
+    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.G)
         {
             _viewModel.ToggleViewMode();
+            e.Handled = true;
             return;
         }
 
@@ -117,8 +118,23 @@ public partial class MainWindow : Window
             if ((e.Key == Key.Enter || e.Key == Key.E) && _viewModel.SelectedPhoto != null)
             {
                 _viewModel.CurrentViewMode = ViewMode.Single;
+                e.Handled = true;
                 return;
             }
+        }
+
+        // Q/E 快捷切换上一张/下一张
+        if (e.Key == Key.Q)
+        {
+            SelectRelativePhoto(-1);
+            e.Handled = true;
+            return;
+        }
+        if (e.Key == Key.E)
+        {
+            SelectRelativePhoto(1);
+            e.Handled = true;
+            return;
         }
 
         var filmstrip = (ListBox)FindName("FilmstripList");
@@ -126,18 +142,6 @@ public partial class MainWindow : Window
 
         bool isCtrl = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
         bool isShift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
-
-        // Q/E 快捷切换上一张/下一张
-        if (e.Key == Key.Q)
-        {
-            SelectRelativePhoto(-1);
-            return;
-        }
-        if (e.Key == Key.E)
-        {
-            SelectRelativePhoto(1);
-            return;
-        }
 
         if (selectedItems == null || selectedItems.Count == 0)
         {
@@ -158,6 +162,7 @@ public partial class MainWindow : Window
                     _viewModel.AlignBatch(selectedItems, AlignmentDirection.Top);
                 else
                     _viewModel.AdjustOffsetBatch(selectedItems, 0, -step);
+                e.Handled = true;
                 break;
             case Key.S:
             case Key.Down:
@@ -165,6 +170,7 @@ public partial class MainWindow : Window
                     _viewModel.AlignBatch(selectedItems, AlignmentDirection.Bottom);
                 else
                     _viewModel.AdjustOffsetBatch(selectedItems, 0, step);
+                e.Handled = true;
                 break;
             case Key.A:
             case Key.Left:
@@ -172,6 +178,7 @@ public partial class MainWindow : Window
                     _viewModel.AlignBatch(selectedItems, AlignmentDirection.Left);
                 else
                     _viewModel.AdjustOffsetBatch(selectedItems, -step, 0);
+                e.Handled = true;
                 break;
             case Key.D:
             case Key.Right:
@@ -179,15 +186,18 @@ public partial class MainWindow : Window
                     _viewModel.AlignBatch(selectedItems, AlignmentDirection.Right);
                 else
                     _viewModel.AdjustOffsetBatch(selectedItems, step, 0);
+                e.Handled = true;
                 break;
 
             case Key.Space:
                 _viewModel.SelectedMode =
                     _viewModel.SelectedMode == CutMode.Fill ? CutMode.Fit : CutMode.Fill;
+                e.Handled = true;
                 break;
 
             case Key.Enter:
                 _viewModel.ExportCommand.Execute(null);
+                e.Handled = true;
                 break;
         }
     }

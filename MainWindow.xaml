@@ -33,6 +33,60 @@
             <Setter Property="Margin" Value="0,0,15,0" />
             <Setter Property="FontSize" Value="13" />
         </Style>
+
+        <!-- 暗黑精致滚动条样式：精细紧凑，杜绝遮挡内容与粗大箭头挤占空间 -->
+        <Style TargetType="{x:Type ScrollBar}">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Style.Triggers>
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <Setter Property="Height" Value="8" />
+                    <Setter Property="MinHeight" Value="8" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="{x:Type ScrollBar}">
+                                <Grid Background="Transparent">
+                                    <Track x:Name="PART_Track" IsDirectionReversed="False">
+                                        <Track.Thumb>
+                                            <Thumb>
+                                                <Thumb.Template>
+                                                    <ControlTemplate TargetType="{x:Type Thumb}">
+                                                        <Border Background="#444444" CornerRadius="4" Height="6" VerticalAlignment="Center" />
+                                                    </ControlTemplate>
+                                                </Thumb.Template>
+                                            </Thumb>
+                                        </Track.Thumb>
+                                    </Track>
+                                </Grid>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+                <Trigger Property="Orientation" Value="Vertical">
+                    <Setter Property="Width" Value="8" />
+                    <Setter Property="MinWidth" Value="8" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="{x:Type ScrollBar}">
+                                <Grid Background="Transparent">
+                                    <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                        <Track.Thumb>
+                                            <Thumb>
+                                                <Thumb.Template>
+                                                    <ControlTemplate TargetType="{x:Type Thumb}">
+                                                        <Border Background="#444444" CornerRadius="4" Width="6" HorizontalAlignment="Center" />
+                                                    </ControlTemplate>
+                                                </Thumb.Template>
+                                            </Thumb>
+                                        </Track.Thumb>
+                                    </Track>
+                                </Grid>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -475,6 +529,8 @@
                     Background="Transparent"
                     BorderThickness="0"
                     Padding="16"
+                    IsTextSearchEnabled="False"
+                    KeyboardNavigation.DirectionalNavigation="None"
                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                     ScrollViewer.VerticalScrollBarVisibility="Auto"
                     MouseDoubleClick="BatchGalleryList_MouseDoubleClick">
@@ -630,7 +686,7 @@
             <!--  底部胶卷缩略图条 (Filmstrip)  -->
             <Border
                 Grid.Row="2"
-                Height="130"
+                Height="142"
                 Background="#141414"
                 BorderBrush="#282828"
                 BorderThickness="0,0,1,0">
@@ -652,6 +708,8 @@
                         ItemsSource="{Binding Photos}"
                         SelectedItem="{Binding SelectedPhoto}"
                         SelectionMode="Extended"
+                        IsTextSearchEnabled="False"
+                        KeyboardNavigation.DirectionalNavigation="None"
                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
                         ScrollViewer.VerticalScrollBarVisibility="Disabled">
                         <ListBox.ItemsPanel>
@@ -662,9 +720,9 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border
-                                    Margin="4,8"
+                                    Margin="4,6,4,2"
                                     Width="94"
-                                    Height="106"
+                                    Height="102"
                                     Background="#1E1E1E"
                                     BorderThickness="2"
                                     BorderBrush="#333333">
