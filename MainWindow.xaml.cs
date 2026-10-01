@@ -36,14 +36,6 @@ public partial class MainWindow : Window
 
     private void PhotoCanvas_MouseDown(object sender, MouseButtonEventArgs e)
     {
-        // 鼠标双击画布/预览裁切框：直接切换“裁剪填充 (Fill)”与“留白完整 (Fit)”模式
-        if (e.ClickCount == 2 && _viewModel.SelectedPhoto != null)
-        {
-            _viewModel.ToggleModeCommand.Execute(null);
-            e.Handled = true;
-            return;
-        }
-
         if (e.LeftButton == MouseButtonState.Pressed && _viewModel.SelectedPhoto != null)
         {
             if (_viewModel.SelectedMode == CutMode.Fit)

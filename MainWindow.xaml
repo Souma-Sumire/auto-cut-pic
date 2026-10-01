@@ -250,7 +250,7 @@
                                 <Separator Background="#383838" Margin="4,2" />
                                 <MenuItem
                                     Header="切换模式 (翻转)"
-                                    InputGestureText="F / 双击"
+                                    InputGestureText="F"
                                     Command="{Binding ToggleModeCommand}" />
                             </ContextMenu>
                         </Grid.ContextMenu>
@@ -529,7 +529,7 @@
                                 Padding="8,3"
                                 Cursor="Hand"
                                 Command="{Binding ToggleModeCommand}"
-                                ToolTip="鼠标点击切换裁剪填充 / 留白完整 (快捷键: F / 双击画布)">
+                                ToolTip="鼠标点击切换裁剪填充 / 留白完整 (快捷键: F)">
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Background" Value="#D0181818" />
