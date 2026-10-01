@@ -652,7 +652,7 @@
                                     Foreground="#CCCCCC"
                                     FontSize="11"
                                     Margin="0,0,12,0"
-                                    Content="淡化 (QE跳过)" />
+                                    Content="淡化" />
                                 <RadioButton
                                     GroupName="MatchedFilterGroup"
                                     IsChecked="{Binding HideMatchedPhotos}"
@@ -732,6 +732,14 @@
                                 <Setter Property="Margin" Value="4" />
                                 <Setter Property="Background" Value="Transparent" />
                                 <Setter Property="BorderThickness" Value="0" />
+                                <Setter Property="Visibility">
+                                    <Setter.Value>
+                                        <MultiBinding Converter="{StaticResource HideMatchedVisibilityConverter}">
+                                            <Binding Path="IsAspectMatched" />
+                                            <Binding Path="DataContext.HideMatchedPhotos" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                        </MultiBinding>
+                                    </Setter.Value>
+                                </Setter>
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="ListBoxItem">
