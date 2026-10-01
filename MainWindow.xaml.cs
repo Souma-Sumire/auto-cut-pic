@@ -71,7 +71,7 @@ public partial class MainWindow : Window
             _dragStartPoint = e.GetPosition(this);
             _dragStartOffsetX = _viewModel.SelectedPhoto.OffsetX;
             _dragStartOffsetY = _viewModel.SelectedPhoto.OffsetY;
-            ((UIElement)sender).CaptureMouse();
+            Mouse.Capture((UIElement)sender);
             e.Handled = true;
         }
     }
@@ -94,7 +94,8 @@ public partial class MainWindow : Window
             photo.OffsetX,
             photo.OffsetY,
             _viewModel.SelectedSize,
-            _viewModel.SelectedMode
+            _viewModel.SelectedMode,
+            photo.Orientation
         );
 
         Point current = e.GetPosition(this);
@@ -122,7 +123,7 @@ public partial class MainWindow : Window
         if (_isDragging)
         {
             _isDragging = false;
-            ((UIElement)sender).ReleaseMouseCapture();
+            Mouse.Capture(null);
             e.Handled = true;
         }
     }
@@ -139,7 +140,7 @@ public partial class MainWindow : Window
             _dragStartPoint = e.GetPosition(this);
             _dragStartOffsetX = _viewModel.SelectedPhoto.OffsetX;
             _dragStartOffsetY = _viewModel.SelectedPhoto.OffsetY;
-            ((UIElement)sender).CaptureMouse();
+            Mouse.Capture((UIElement)sender);
         }
     }
 
@@ -153,7 +154,7 @@ public partial class MainWindow : Window
         if (_isDragging)
         {
             _isDragging = false;
-            ((UIElement)sender).ReleaseMouseCapture();
+            Mouse.Capture(null);
         }
     }
 

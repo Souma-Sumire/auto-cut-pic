@@ -249,7 +249,7 @@ namespace AutoCutPic.Core
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
             if (values == null || values.Length < 6) return 300.0;
-            for (int i = 0; i < values.Length; i++)
+            for (int i = 0; i < Math.Min(6, values.Length); i++)
             {
                 if (values[i] == DependencyProperty.UnsetValue || values[i] == null)
                     return 300.0;
@@ -285,7 +285,7 @@ namespace AutoCutPic.Core
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
             if (values == null || values.Length < 8) return 300.0;
-            for (int i = 0; i < values.Length; i++)
+            for (int i = 0; i < Math.Min(8, values.Length); i++)
             {
                 if (values[i] == DependencyProperty.UnsetValue || values[i] == null)
                     return 300.0;
@@ -323,7 +323,7 @@ namespace AutoCutPic.Core
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
             if (values == null || values.Length < 8) return new Thickness(0);
-            for (int i = 0; i < values.Length; i++)
+            for (int i = 0; i < Math.Min(8, values.Length); i++)
             {
                 if (values[i] == DependencyProperty.UnsetValue || values[i] == null)
                     return new Thickness(0);
@@ -361,7 +361,7 @@ namespace AutoCutPic.Core
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
             if (values == null || values.Length < 8) return 300.0;
-            for (int i = 0; i < values.Length; i++)
+            for (int i = 0; i < Math.Min(8, values.Length); i++)
             {
                 if (values[i] == DependencyProperty.UnsetValue || values[i] == null)
                     return 300.0;
@@ -399,7 +399,7 @@ namespace AutoCutPic.Core
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
             if (values == null || values.Length < 8) return new Thickness(0);
-            for (int i = 0; i < values.Length; i++)
+            for (int i = 0; i < Math.Min(8, values.Length); i++)
             {
                 if (values[i] == DependencyProperty.UnsetValue || values[i] == null)
                     return new Thickness(0);
@@ -437,7 +437,7 @@ namespace AutoCutPic.Core
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
             if (values == null || values.Length < 8) return Geometry.Empty;
-            for (int i = 0; i < values.Length; i++)
+            for (int i = 0; i < Math.Min(8, values.Length); i++)
             {
                 if (values[i] == DependencyProperty.UnsetValue || values[i] == null)
                     return Geometry.Empty;
