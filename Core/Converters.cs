@@ -696,4 +696,18 @@ namespace AutoCutPic.Core
             CultureInfo culture
         ) => throw new NotImplementedException();
     }
+
+    public class CutModeToDisplayConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is CutMode mode)
+            {
+                return mode == CutMode.Fill ? "裁剪填充" : "留白完整";
+            }
+            return "-";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
 }

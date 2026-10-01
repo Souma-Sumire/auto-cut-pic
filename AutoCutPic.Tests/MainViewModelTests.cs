@@ -113,5 +113,31 @@ namespace AutoCutPic.Tests
             Assert.Equal(CutMode.Fit, p1.Mode);
             Assert.Equal(CutMode.Fill, p2.Mode);
         }
+
+        [Fact]
+        public void ToggleModeCommand_And_SetModeCommand_ShouldUpdateCurrentPhoto()
+        {
+            var p = new PhotoViewModel("test.jpg") { Mode = CutMode.Fill };
+            var vm = new MainViewModel();
+            vm.Photos.Add(p);
+            vm.SelectedPhoto = p;
+
+            Assert.Equal(CutMode.Fill, vm.SelectedMode);
+
+            // 执行 ToggleModeCommand 翻转为 Fit
+            vm.ToggleModeCommand.Execute(null);
+            Assert.Equal(CutMode.Fit, vm.SelectedMode);
+            Assert.Equal(CutMode.Fit, p.Mode);
+
+            // 再次执行 ToggleModeCommand 翻转为 Fill
+            vm.ToggleModeCommand.Execute(null);
+            Assert.Equal(CutMode.Fill, vm.SelectedMode);
+            Assert.Equal(CutMode.Fill, p.Mode);
+
+            // 执行 SetModeCommand
+            vm.SetModeCommand.Execute("Fit");
+            Assert.Equal(CutMode.Fit, vm.SelectedMode);
+            Assert.Equal(CutMode.Fit, p.Mode);
+        }
     }
 }

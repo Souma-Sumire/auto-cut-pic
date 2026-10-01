@@ -370,6 +370,8 @@ namespace AutoCutPic.ViewModels
         public ICommand ExportCommand { get; }
         public ICommand CancelExportCommand { get; }
         public ICommand SwitchViewModeCommand { get; }
+        public ICommand ToggleModeCommand { get; }
+        public ICommand SetModeCommand { get; }
 
         public void ToggleViewMode() =>
             CurrentViewMode = CurrentViewMode == ViewMode.Single ? ViewMode.Batch : ViewMode.Single;
@@ -378,6 +380,26 @@ namespace AutoCutPic.ViewModels
         {
             _imageProcessor = imageProcessor ?? ImageProcessor.Instance;
             _selectedSize = Sizes.FirstOrDefault(s => s.Name == "6寸") ?? PhotoSize.Inch6;
+
+            ToggleModeCommand = new RelayCommand(_ =>
+            {
+                if (SelectedPhoto != null)
+                {
+                    SelectedMode = SelectedMode == CutMode.Fill ? CutMode.Fit : CutMode.Fill;
+                }
+            });
+
+            SetModeCommand = new RelayCommand(p =>
+            {
+                if (p is CutMode cm)
+                {
+                    SelectedMode = cm;
+                }
+                else if (p is string s && Enum.TryParse<CutMode>(s, true, out var parsed))
+                {
+                    SelectedMode = parsed;
+                }
+            });
 
             SwitchViewModeCommand = new RelayCommand(p =>
             {

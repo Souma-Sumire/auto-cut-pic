@@ -36,6 +36,14 @@ public partial class MainWindow : Window
 
     private void PhotoCanvas_MouseDown(object sender, MouseButtonEventArgs e)
     {
+        // 鼠标双击画布/预览裁切框：直接切换“裁剪填充 (Fill)”与“留白完整 (Fit)”模式
+        if (e.ClickCount == 2 && _viewModel.SelectedPhoto != null)
+        {
+            _viewModel.ToggleModeCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
         if (e.LeftButton == MouseButtonState.Pressed && _viewModel.SelectedPhoto != null)
         {
             if (_viewModel.SelectedMode == CutMode.Fit)
@@ -108,14 +116,6 @@ public partial class MainWindow : Window
     {
         bool isCtrl = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
         bool isShift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
-
-        // 导出操作：必须使用 Ctrl + Enter 组合键，避免单键 Enter 误触导致全量重型批处理
-        if (isCtrl && e.Key == Key.Enter)
-        {
-            _viewModel.ExportCommand.Execute(null);
-            e.Handled = true;
-            return;
-        }
 
         // G: 切换批量画廊 / 单张精调视图
         if (e.Key == Key.G)
