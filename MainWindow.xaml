@@ -40,6 +40,21 @@
             <ColumnDefinition Width="290" />
         </Grid.ColumnDefinitions>
 
+        <!-- 全局流式导入进度指示器 -->
+        <ProgressBar
+            Grid.Column="0"
+            Grid.ColumnSpan="2"
+            Height="3"
+            VerticalAlignment="Top"
+            Background="Transparent"
+            Foreground="#0078D4"
+            BorderThickness="0"
+            Minimum="0"
+            Maximum="100"
+            Value="{Binding LoadingProgress}"
+            Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
+            Panel.ZIndex="999" />
+
         <!--  左侧主工作台与底片胶卷  -->
         <Grid Grid.Column="0">
             <Grid.RowDefinitions>
@@ -702,6 +717,17 @@
                     <StackPanel
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
                         <Border
                             Width="88"
                             Height="88"
@@ -712,9 +738,11 @@
                             CornerRadius="44"
                             HorizontalAlignment="Center">
                             <Path
-                                Data="M 28,44 L 60,44 M 44,28 L 44,60"
+                                Width="32"
+                                Height="32"
+                                Data="M 0,16 L 32,16 M 16,0 L 16,32"
                                 Stroke="#0078D4"
-                                StrokeThickness="3.5"
+                                StrokeThickness="3"
                                 StrokeStartLineCap="Round"
                                 StrokeEndLineCap="Round"
                                 HorizontalAlignment="Center"
@@ -793,6 +821,46 @@
                                 <TextBlock Text="TIFF / BMP" FontSize="11" Foreground="#AAAAAA" />
                             </Border>
                         </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <TextBlock
+                            Text="正在载入照片"
+                            FontSize="22"
+                            FontWeight="Bold"
+                            Foreground="#FFFFFF"
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,20" />
+
+                        <ProgressBar
+                            Width="360"
+                            Height="6"
+                            Background="#252526"
+                            Foreground="#0078D4"
+                            BorderThickness="0"
+                            Minimum="0"
+                            Maximum="100"
+                            Value="{Binding LoadingProgress}" />
+
+                        <TextBlock
+                            Margin="0,16,0,0"
+                            Text="{Binding LoadingStatusText}"
+                            FontSize="12"
+                            Foreground="#888888"
+                            HorizontalAlignment="Center" />
                     </StackPanel>
                 </Grid>
         </Grid>

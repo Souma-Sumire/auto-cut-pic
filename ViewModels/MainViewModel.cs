@@ -217,6 +217,40 @@ namespace AutoCutPic.ViewModels
             }
         }
 
+        private bool _isLoading;
+        private double _loadingProgress;
+        private string _loadingStatusText = "";
+
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set
+            {
+                _isLoading = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public double LoadingProgress
+        {
+            get => _loadingProgress;
+            set
+            {
+                _loadingProgress = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string LoadingStatusText
+        {
+            get => _loadingStatusText;
+            set
+            {
+                _loadingStatusText = value;
+                OnPropertyChanged();
+            }
+        }
+
         private void OnSelectedPhotoChanged(PhotoViewModel? photo)
         {
             _highResCts?.Cancel();
@@ -246,13 +280,24 @@ namespace AutoCutPic.ViewModels
                     var bs = ConvertToBitmapSource(img);
                     if (token.IsCancellationRequested) return;
 
-                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                    if (dispatcher != null)
+                    {
+                        dispatcher.Invoke(() =>
+                        {
+                            if (!token.IsCancellationRequested && SelectedPhoto == photo)
+                            {
+                                HighResPreview = bs;
+                            }
+                        });
+                    }
+                    else
                     {
                         if (!token.IsCancellationRequested && SelectedPhoto == photo)
                         {
                             HighResPreview = bs;
                         }
-                    });
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -302,31 +347,66 @@ namespace AutoCutPic.ViewModels
 
         public async Task LoadFiles(string[] allFiles)
         {
+            if (allFiles == null || allFiles.Length == 0) return;
+
+            IsLoading = true;
+            LoadingProgress = 0;
+            LoadingStatusText = $"正在导入照片 (0/{allFiles.Length})...";
             Photos.Clear();
-            StatusText = $"正在加载 {allFiles.Length} 张图片...";
+            SelectedPhoto = null;
+            HighResPreview = null;
 
-            var loadTasks = allFiles
-                .Select(file =>
-                    Task.Run(() =>
-                    {
-                        var photo = new PhotoViewModel(file);
-                        LoadThumbnail(photo);
-                        return photo;
-                    })
-                )
-                .ToList();
+            int total = allFiles.Length;
+            int loaded = 0;
 
-            var results = await Task.WhenAll(loadTasks);
-            foreach (var photo in results)
+            await Task.Run(() =>
             {
-                Photos.Add(photo);
-            }
+                var options = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
+                Parallel.ForEach(allFiles, options, file =>
+                {
+                    var photo = new PhotoViewModel(file);
+                    LoadThumbnail(photo);
 
-            if (Photos.Any())
+                    int current = Interlocked.Increment(ref loaded);
+                    double pct = (double)current / total * 100.0;
+                    string name = Path.GetFileName(file);
+
+                    var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                    if (dispatcher != null)
+                    {
+                        dispatcher.InvokeAsync(() =>
+                        {
+                            Photos.Add(photo);
+                            if (SelectedPhoto == null)
+                            {
+                                SelectedPhoto = photo;
+                            }
+                            LoadingProgress = pct;
+                            LoadingStatusText = $"正在载入第 {current}/{total} 张 ({pct:F0}%): {name}";
+                        }, System.Windows.Threading.DispatcherPriority.Background);
+                    }
+                    else
+                    {
+                        lock (Photos)
+                        {
+                            Photos.Add(photo);
+                            if (SelectedPhoto == null)
+                            {
+                                SelectedPhoto = photo;
+                            }
+                            LoadingProgress = pct;
+                            LoadingStatusText = $"正在载入第 {current}/{total} 张 ({pct:F0}%): {name}";
+                        }
+                    }
+                });
+            });
+
+            IsLoading = false;
+            StatusText = $"已导入 {Photos.Count} 张照片";
+            if (SelectedPhoto == null && Photos.Any())
             {
                 SelectedPhoto = Photos[0];
             }
-            StatusText = $"已加载 {Photos.Count} 张图片";
         }
 
         private void LoadThumbnail(PhotoViewModel photo)
@@ -340,12 +420,9 @@ namespace AutoCutPic.ViewModels
                 image.Resize(new MagickGeometry(300, 300));
                 var thumb = ConvertToBitmapSource(image);
 
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                {
-                    photo.OriginalWidth = origW;
-                    photo.OriginalHeight = origH;
-                    photo.Thumbnail = thumb;
-                });
+                photo.OriginalWidth = origW;
+                photo.OriginalHeight = origH;
+                photo.Thumbnail = thumb;
             }
             catch (Exception ex)
             {
