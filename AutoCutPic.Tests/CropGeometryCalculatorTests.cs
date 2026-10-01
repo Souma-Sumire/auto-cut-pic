@@ -235,5 +235,49 @@ namespace AutoCutPic.Tests
             Assert.True(layout.PaperWidth >= 0);
             Assert.True(layout.PaperHeight >= 0);
         }
+
+        [Fact]
+        public void CalculateBatchCardCropLayout_FillMode_ShouldCalculateAccurateCropBoxAndImageBounds()
+        {
+            var size = PhotoSize.Inch6; // 1795 x 1205
+            var layout = CropGeometryCalculator.CalculateBatchCardCropLayout(
+                boxWidth: 180,
+                boxHeight: 120,
+                photoWidth: 1600,
+                photoHeight: 800, // 2:1 超宽横图
+                targetSize: size,
+                mode: CutMode.Fill,
+                offsetX: 0,
+                offsetY: 0
+            );
+
+            Assert.False(layout.IsFit);
+            Assert.True(layout.ImageWidth > 0 && layout.ImageWidth <= 180);
+            Assert.True(layout.ImageHeight > 0 && layout.ImageHeight <= 120);
+            // 裁切框必须在原图内部
+            Assert.True(layout.CropLeft >= layout.ImageLeft);
+            Assert.True(layout.CropTop >= layout.ImageTop);
+            Assert.True(layout.CropWidth <= layout.ImageWidth);
+            Assert.True(layout.CropHeight <= layout.ImageHeight);
+        }
+
+        [Fact]
+        public void CalculateBatchCardCropLayout_FitMode_ShouldSetIsFitTrue()
+        {
+            var size = PhotoSize.Inch6;
+            var layout = CropGeometryCalculator.CalculateBatchCardCropLayout(
+                boxWidth: 180,
+                boxHeight: 120,
+                photoWidth: 1600,
+                photoHeight: 800,
+                targetSize: size,
+                mode: CutMode.Fit
+            );
+
+            Assert.True(layout.IsFit);
+            Assert.True(layout.CropWidth > 0 && layout.CropHeight > 0);
+            Assert.True(layout.ImageWidth <= layout.CropWidth);
+            Assert.True(layout.ImageHeight <= layout.CropHeight);
+        }
     }
 }

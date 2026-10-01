@@ -38,4 +38,21 @@ namespace AutoCutPic.Core.Calculators
         double MarginTop,
         bool IsFit
     );
+
+    /// <summary>
+    /// 表示批量网格预览卡片中完整原图、冲印裁切框与被裁剪区域遮罩的几何布局
+    /// </summary>
+    public readonly record struct BatchCardCropLayout(
+        double BoxWidth,
+        double BoxHeight,
+        double ImageWidth,
+        double ImageHeight,
+        double ImageLeft,
+        double ImageTop,
+        double CropLeft,
+        double CropTop,
+        double CropWidth,
+        double CropHeight,
+        bool IsFit
+    );
 }

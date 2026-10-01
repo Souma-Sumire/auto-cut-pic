@@ -606,4 +606,94 @@ namespace AutoCutPic.Core
             CultureInfo culture
         ) => throw new NotImplementedException();
     }
+
+    public class BatchCardCropConverter : IMultiValueConverter
+    {
+        public object Convert(
+            object[] values,
+            Type targetType,
+            object parameter,
+            CultureInfo culture
+        )
+        {
+            if (values == null || values.Length < 6)
+                return GetDefault(parameter);
+
+            for (int i = 0; i < 6; i++)
+            {
+                if (values[i] == DependencyProperty.UnsetValue || values[i] == null)
+                    return GetDefault(parameter);
+            }
+
+            int photoW = values[0] is int pw ? pw : 0;
+            int photoH = values[1] is int ph ? ph : 0;
+            PhotoSize? size = values[2] as PhotoSize;
+            CutMode mode = values[3] is CutMode m ? m : CutMode.Fill;
+            double offsetX = values[4] is double ox ? ox : 0.0;
+            double offsetY = values[5] is double oy ? oy : 0.0;
+
+            double boxW = 186.0;
+            double boxH = 124.0;
+
+            if (values.Length > 7 && values[6] is double bw && bw > 10 && values[7] is double bh && bh > 10)
+            {
+                boxW = bw;
+                boxH = bh;
+            }
+
+            if (photoW <= 0 || photoH <= 0 || size == null)
+                return GetDefault(parameter);
+
+            var layout = AutoCutPic.Core.Calculators.CropGeometryCalculator.CalculateBatchCardCropLayout(
+                boxW,
+                boxH,
+                photoW,
+                photoH,
+                size,
+                mode,
+                offsetX,
+                offsetY
+            );
+
+            string param = parameter?.ToString() ?? "";
+            return param switch
+            {
+                "ImageWidth" => layout.ImageWidth,
+                "ImageHeight" => layout.ImageHeight,
+                "ImageMargin" => new Thickness(layout.ImageLeft, layout.ImageTop, 0, 0),
+                "CropWidth" => layout.CropWidth,
+                "CropHeight" => layout.CropHeight,
+                "CropMargin" => new Thickness(layout.CropLeft, layout.CropTop, 0, 0),
+                "MaskGeometry" => layout.IsFit
+                    ? Geometry.Empty
+                    : new CombinedGeometry(
+                        GeometryCombineMode.Exclude,
+                        new RectangleGeometry(new Rect(layout.ImageLeft, layout.ImageTop, layout.ImageWidth, layout.ImageHeight)),
+                        new RectangleGeometry(new Rect(layout.CropLeft, layout.CropTop, layout.CropWidth, layout.CropHeight))
+                    ),
+                "CropVisibility" => layout.IsFit ? Visibility.Collapsed : Visibility.Visible,
+                "FitPaperVisibility" => layout.IsFit ? Visibility.Visible : Visibility.Collapsed,
+                _ => 0.0
+            };
+        }
+
+        private static object GetDefault(object? parameter)
+        {
+            string p = parameter?.ToString() ?? "";
+            if (p.EndsWith("Margin", StringComparison.Ordinal))
+                return new Thickness(0);
+            if (p == "MaskGeometry")
+                return Geometry.Empty;
+            if (p.EndsWith("Visibility", StringComparison.Ordinal))
+                return Visibility.Collapsed;
+            return 0.0;
+        }
+
+        public object[] ConvertBack(
+            object value,
+            Type[] targetTypes,
+            object parameter,
+            CultureInfo culture
+        ) => throw new NotImplementedException();
+    }
 }

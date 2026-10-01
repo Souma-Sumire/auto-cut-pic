@@ -185,5 +185,72 @@ namespace AutoCutPic.Core.Calculators
                 return new BatchCardLayout(paperW, paperH, imgW, imgH, left, top, false);
             }
         }
+
+        /// <summary>
+        /// 计算批量预览网格卡片中完整原图显示与冲印相纸裁切取景框的几何位置
+        /// </summary>
+        public static BatchCardCropLayout CalculateBatchCardCropLayout(
+            double boxWidth,
+            double boxHeight,
+            int photoWidth,
+            int photoHeight,
+            PhotoSize targetSize,
+            CutMode mode,
+            double offsetX = 0,
+            double offsetY = 0)
+        {
+            if (boxWidth <= 10 || boxHeight <= 10 || photoWidth <= 0 || photoHeight <= 0 || targetSize == null)
+            {
+                return new BatchCardCropLayout(boxWidth, boxHeight, boxWidth, boxHeight, 0, 0, 0, 0, boxWidth, boxHeight, false);
+            }
+
+            var targetPaper = CalculateTargetPaperDimensions(targetSize, photoWidth, photoHeight);
+
+            if (mode == CutMode.Fit)
+            {
+                // Fit 留白模式：相纸在视口内居中自适应，照片在相纸内部居中留白
+                double paperScale = Math.Min(boxWidth / targetPaper.Width, boxHeight / targetPaper.Height);
+                double paperW = Math.Max(10, Math.Round(targetPaper.Width * paperScale));
+                double paperH = Math.Max(10, Math.Round(targetPaper.Height * paperScale));
+                double paperLeft = Math.Round((boxWidth - paperW) / 2.0);
+                double paperTop = Math.Round((boxHeight - paperH) / 2.0);
+
+                double imgScale = Math.Min(paperW / photoWidth, paperH / photoHeight);
+                double imgW = Math.Max(5, Math.Round(photoWidth * imgScale));
+                double imgH = Math.Max(5, Math.Round(photoHeight * imgScale));
+                double imgLeft = paperLeft + Math.Round((paperW - imgW) / 2.0);
+                double imgTop = paperTop + Math.Round((paperH - imgH) / 2.0);
+
+                return new BatchCardCropLayout(
+                    boxWidth, boxHeight,
+                    imgW, imgH, imgLeft, imgTop,
+                    paperLeft, paperTop, paperW, paperH,
+                    true
+                );
+            }
+            else
+            {
+                // Fill 填充模式：原图完整展示在 box 内部，在其上清晰高亮标出裁切框与外部被裁暗区
+                double scale = Math.Min(boxWidth / photoWidth, boxHeight / photoHeight);
+                double imgW = Math.Max(10, Math.Round(photoWidth * scale));
+                double imgH = Math.Max(10, Math.Round(photoHeight * scale));
+                double imgLeft = Math.Round((boxWidth - imgW) / 2.0);
+                double imgTop = Math.Round((boxHeight - imgH) / 2.0);
+
+                var cropRect = CalculateFillCrop(photoWidth, photoHeight, targetPaper, offsetX, offsetY);
+
+                double cropW = Math.Max(5, Math.Round(cropRect.Width * scale));
+                double cropH = Math.Max(5, Math.Round(cropRect.Height * scale));
+                double cropLeft = imgLeft + Math.Round(cropRect.X * scale);
+                double cropTop = imgTop + Math.Round(cropRect.Y * scale);
+
+                return new BatchCardCropLayout(
+                    boxWidth, boxHeight,
+                    imgW, imgH, imgLeft, imgTop,
+                    cropLeft, cropTop, cropW, cropH,
+                    false
+                );
+            }
+        }
     }
 }

@@ -24,6 +24,7 @@
         <core:PsCropMaskConverter x:Key="PsCropMaskConverter" />
         <core:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
         <core:BatchCardPlacementConverter x:Key="BatchCardPlacementConverter" />
+        <core:BatchCardCropConverter x:Key="BatchCardCropConverter" />
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
         <!-- 工业风单选框样式 -->
@@ -581,40 +582,61 @@
                                         <RowDefinition Height="38" />
                                     </Grid.RowDefinitions>
 
-                                    <!-- 相纸视口展示区 (深暗色背景) -->
+                                    <!-- 照片视口展示区 (深暗色背景) -->
                                     <Border
                                         Grid.Row="0"
-                                        Background="#121212"
+                                        Background="#111111"
                                         CornerRadius="3,3,0,0"
                                         ClipToBounds="True">
-                                        <!-- 纯白冲印相纸 -->
-                                        <Border
-                                            Background="#FFFFFF"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            ClipToBounds="True">
-                                            <Border.Width>
-                                                <MultiBinding Converter="{StaticResource BatchCardPlacementConverter}" ConverterParameter="PaperWidth">
-                                                    <Binding Path="OriginalWidth" />
-                                                    <Binding Path="OriginalHeight" />
-                                                    <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                    <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                    <Binding Path="OffsetX" />
-                                                    <Binding Path="OffsetY" />
-                                                </MultiBinding>
-                                            </Border.Width>
-                                            <Border.Height>
-                                                <MultiBinding Converter="{StaticResource BatchCardPlacementConverter}" ConverterParameter="PaperHeight">
-                                                    <Binding Path="OriginalWidth" />
-                                                    <Binding Path="OriginalHeight" />
-                                                    <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                    <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                    <Binding Path="OffsetX" />
-                                                    <Binding Path="OffsetY" />
-                                                </MultiBinding>
-                                            </Border.Height>
+                                        <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <!-- Fit 模式纯白相纸底板 -->
+                                            <Border
+                                                Background="#FFFFFF"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Top">
+                                                <Border.Visibility>
+                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="FitPaperVisibility">
+                                                        <Binding Path="OriginalWidth" />
+                                                        <Binding Path="OriginalHeight" />
+                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="OffsetX" />
+                                                        <Binding Path="OffsetY" />
+                                                    </MultiBinding>
+                                                </Border.Visibility>
+                                                <Border.Width>
+                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropWidth">
+                                                        <Binding Path="OriginalWidth" />
+                                                        <Binding Path="OriginalHeight" />
+                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="OffsetX" />
+                                                        <Binding Path="OffsetY" />
+                                                    </MultiBinding>
+                                                </Border.Width>
+                                                <Border.Height>
+                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropHeight">
+                                                        <Binding Path="OriginalWidth" />
+                                                        <Binding Path="OriginalHeight" />
+                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="OffsetX" />
+                                                        <Binding Path="OffsetY" />
+                                                    </MultiBinding>
+                                                </Border.Height>
+                                                <Border.Margin>
+                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropMargin">
+                                                        <Binding Path="OriginalWidth" />
+                                                        <Binding Path="OriginalHeight" />
+                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="OffsetX" />
+                                                        <Binding Path="OffsetY" />
+                                                    </MultiBinding>
+                                                </Border.Margin>
+                                            </Border>
 
-                                            <!-- 裁切后照片渲染 -->
+                                            <!-- 完整照片原图呈现 -->
                                             <Image
                                                 Source="{Binding Thumbnail}"
                                                 Stretch="Fill"
@@ -622,7 +644,7 @@
                                                 VerticalAlignment="Top"
                                                 RenderOptions.BitmapScalingMode="LowQuality">
                                                 <Image.Width>
-                                                    <MultiBinding Converter="{StaticResource BatchCardPlacementConverter}" ConverterParameter="ImageWidth">
+                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="ImageWidth">
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
@@ -632,7 +654,7 @@
                                                     </MultiBinding>
                                                 </Image.Width>
                                                 <Image.Height>
-                                                    <MultiBinding Converter="{StaticResource BatchCardPlacementConverter}" ConverterParameter="ImageHeight">
+                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="ImageHeight">
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
@@ -642,7 +664,7 @@
                                                     </MultiBinding>
                                                 </Image.Height>
                                                 <Image.Margin>
-                                                    <MultiBinding Converter="{StaticResource BatchCardPlacementConverter}" ConverterParameter="ImageMargin">
+                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="ImageMargin">
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
@@ -652,7 +674,72 @@
                                                     </MultiBinding>
                                                 </Image.Margin>
                                             </Image>
-                                        </Border>
+
+                                            <!-- Fill 模式下：被裁切掉的外围区域暗色半透明遮罩 (清楚可见被裁切掉的内容) -->
+                                            <Path
+                                                Fill="#A0000000"
+                                                IsHitTestVisible="False">
+                                                <Path.Data>
+                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="MaskGeometry">
+                                                        <Binding Path="OriginalWidth" />
+                                                        <Binding Path="OriginalHeight" />
+                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="OffsetX" />
+                                                        <Binding Path="OffsetY" />
+                                                    </MultiBinding>
+                                                </Path.Data>
+                                            </Path>
+
+                                            <!-- Fill 模式下：冲印相纸裁切取景框（高亮白框 + 清晰边界） -->
+                                            <Border
+                                                BorderBrush="#FFFFFF"
+                                                BorderThickness="1.5"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Top"
+                                                IsHitTestVisible="False">
+                                                <Border.Visibility>
+                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropVisibility">
+                                                        <Binding Path="OriginalWidth" />
+                                                        <Binding Path="OriginalHeight" />
+                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="OffsetX" />
+                                                        <Binding Path="OffsetY" />
+                                                    </MultiBinding>
+                                                </Border.Visibility>
+                                                <Border.Width>
+                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropWidth">
+                                                        <Binding Path="OriginalWidth" />
+                                                        <Binding Path="OriginalHeight" />
+                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="OffsetX" />
+                                                        <Binding Path="OffsetY" />
+                                                    </MultiBinding>
+                                                </Border.Width>
+                                                <Border.Height>
+                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropHeight">
+                                                        <Binding Path="OriginalWidth" />
+                                                        <Binding Path="OriginalHeight" />
+                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="OffsetX" />
+                                                        <Binding Path="OffsetY" />
+                                                    </MultiBinding>
+                                                </Border.Height>
+                                                <Border.Margin>
+                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropMargin">
+                                                        <Binding Path="OriginalWidth" />
+                                                        <Binding Path="OriginalHeight" />
+                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="OffsetX" />
+                                                        <Binding Path="OffsetY" />
+                                                    </MultiBinding>
+                                                </Border.Margin>
+                                            </Border>
+                                        </Grid>
                                     </Border>
 
                                     <!-- 卡片底部元数据 -->
