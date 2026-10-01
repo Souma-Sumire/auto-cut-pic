@@ -279,5 +279,44 @@ namespace AutoCutPic.Tests
             Assert.True(layout.ImageWidth <= layout.CropWidth);
             Assert.True(layout.ImageHeight <= layout.CropHeight);
         }
+
+        [Fact]
+        public void IsAspectMatched_Standard3to2PhotoWithInch6_ShouldReturnTrue()
+        {
+            // 标准单反 3:2 照片 (3000 x 2000)，冲印 6寸 (1795 x 1205，比例约 1.4896)
+            // 两者相对差异约 0.69% <= 1.5%
+            bool isMatched = CropGeometryCalculator.IsAspectMatched(3000, 2000, PhotoSize.Inch6);
+            Assert.True(isMatched);
+
+            // 竖向 2:3 照片 (2000 x 3000) 冲印 6寸 (自适应纵向 1205 x 1795)
+            bool isPortraitMatched = CropGeometryCalculator.IsAspectMatched(2000, 3000, PhotoSize.Inch6);
+            Assert.True(isPortraitMatched);
+        }
+
+        [Fact]
+        public void IsAspectMatched_NonMatchingRatio_ShouldReturnFalse()
+        {
+            // 手机常见的 4:3 照片 (4000 x 3000，比例 1.333) 冲印 6寸 (比例 1.490)，相差超过 10%
+            bool isMatched43 = CropGeometryCalculator.IsAspectMatched(4000, 3000, PhotoSize.Inch6);
+            Assert.False(isMatched43);
+
+            // 正方形 1:1 照片 (2000 x 2000) 冲印 6寸
+            bool isMatchedSquare = CropGeometryCalculator.IsAspectMatched(2000, 2000, PhotoSize.Inch6);
+            Assert.False(isMatchedSquare);
+        }
+
+        [Fact]
+        public void CalculateCropLossRatio_StandardCases_ShouldReturnAccurateRatios()
+        {
+            // 完全同比例图片损失率为 0
+            double zeroLoss = CropGeometryCalculator.CalculateCropLossRatio(1795, 1205, PhotoSize.Inch6);
+            Assert.Equal(0.0, zeroLoss, 4);
+
+            // 4:3 照片冲印 6寸 (1795 x 1205, AR 约 1.4896)
+            // 4:3 照片 AR 约 1.3333 < 1.4896，高度方向超出，计算裁剪损失率 > 0
+            double lossRatio = CropGeometryCalculator.CalculateCropLossRatio(4000, 3000, PhotoSize.Inch6);
+            Assert.True(lossRatio > 0.05); // 损失超过 5%
+        }
     }
 }
+

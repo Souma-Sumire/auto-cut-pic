@@ -27,6 +27,7 @@
         <core:BatchCardPlacementConverter x:Key="BatchCardPlacementConverter" />
         <core:BatchCardCropConverter x:Key="BatchCardCropConverter" />
         <core:CutModeToDisplayConverter x:Key="CutModeToDisplayConverter" />
+        <core:DimMatchedOpacityConverter x:Key="DimMatchedOpacityConverter" />
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
         <!-- 工业风单选框样式 -->
@@ -114,96 +115,44 @@
             Panel.ZIndex="999" />
 
         <!--  左侧主工作台与底片胶卷  -->
-        <!--  左侧主工作台与底片胶卷  -->
+        <!--  左侧主工作台（上半部单张大图工作台 + 下半部资源管理器平铺视图）  -->
         <Grid Grid.Column="0">
             <Grid.RowDefinitions>
+                <!-- Row 0: 顶部控制栏 -->
                 <RowDefinition Height="40" />
-                <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
+                <!-- Row 1: 单张精调大图主工作台 -->
+                <RowDefinition Height="3*" MinHeight="220" />
+                <!-- Row 2: 上下可拖拽分割条 -->
+                <RowDefinition Height="5" />
+                <!-- Row 3: 资源管理器平铺视图 (多行垂直滚动) -->
+                <RowDefinition Height="2*" MinHeight="140" />
             </Grid.RowDefinitions>
 
-            <!-- 顶部工作模式切换栏 -->
+            <!-- 顶部工作条 (同比例免修开关与照片统计) -->
             <Border
                 Grid.Row="0"
                 Background="#1D1D1D"
                 BorderBrush="#282828"
                 BorderThickness="0,0,1,1"
-                Padding="14,0">
+                Padding="16,0">
                 <Grid>
-                    <!-- 模式切换分段按钮 -->
+                    <!-- 左侧：同比例免修照片过滤/淡化开关 -->
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border
-                            Background="#141414"
-                            BorderBrush="#333333"
-                            BorderThickness="1"
-                            CornerRadius="4"
-                            Padding="2">
-                            <StackPanel Orientation="Horizontal">
-                                <Button
-                                    Command="{Binding SwitchViewModeCommand}"
-                                    CommandParameter="Single"
-                                    Padding="12,3"
-                                    Cursor="Hand"
-                                    FontSize="12"
-                                    FontWeight="Medium"
-                                    ToolTip="切换视图 (G)"
-                                    BorderThickness="0">
-                                    <Button.Style>
-                                        <Style TargetType="Button">
-                                            <Setter Property="Background" Value="Transparent" />
-                                            <Setter Property="Foreground" Value="#888888" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding CurrentViewMode}" Value="Single">
-                                                    <Setter Property="Background" Value="#333333" />
-                                                    <Setter Property="Foreground" Value="#FFFFFF" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                    <Button.Resources>
-                                        <Style TargetType="Border">
-                                            <Setter Property="CornerRadius" Value="3" />
-                                        </Style>
-                                    </Button.Resources>
-                                    <TextBlock Text="单张精调" />
-                                </Button>
-
-                                <Button
-                                    Command="{Binding SwitchViewModeCommand}"
-                                    CommandParameter="Batch"
-                                    ToolTip="切换视图 (G)"
-                                    Margin="2,0,0,0"
-                                    Padding="12,3"
-                                    Cursor="Hand"
-                                    FontSize="12"
-                                    FontWeight="Medium"
-                                    BorderThickness="0">
-                                    <Button.Style>
-                                        <Style TargetType="Button">
-                                            <Setter Property="Background" Value="Transparent" />
-                                            <Setter Property="Foreground" Value="#888888" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding CurrentViewMode}" Value="Batch">
-                                                    <Setter Property="Background" Value="#0078D4" />
-                                                    <Setter Property="Foreground" Value="#FFFFFF" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                    <Button.Resources>
-                                        <Style TargetType="Border">
-                                            <Setter Property="CornerRadius" Value="3" />
-                                        </Style>
-                                    </Button.Resources>
-                                    <TextBlock Text="批量预览" />
-                                </Button>
-                            </StackPanel>
-                        </Border>
+                        <CheckBox
+                            IsChecked="{Binding DimMatchedPhotos}"
+                            VerticalAlignment="Center"
+                            Foreground="#CCCCCC"
+                            FontSize="12"
+                            Content="淡化同比例免修照片 (QE自动跳过)" />
                     </StackPanel>
 
-                    <!-- 右侧辅助信息 -->
+                    <!-- 右侧：照片总量与免修状态统计 -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <TextBlock Text="{Binding Photos.Count, StringFormat='共 {0} 张照片'}" Foreground="#666666" FontSize="11" />
+                        <TextBlock Text=" · " Foreground="#444444" FontSize="11" />
+                        <TextBlock Text="{Binding NeedAdjustCount, StringFormat='{}{0} 张需调整'}" Foreground="#E0E0E0" FontWeight="Medium" FontSize="11" />
+                        <TextBlock Text=" · " Foreground="#444444" FontSize="11" />
+                        <TextBlock Text="{Binding AspectMatchedCount, StringFormat='{}{0} 张同比例免修'}" Foreground="#888888" FontSize="11" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -214,18 +163,8 @@
                 Grid.Row="1"
                 Background="#181818"
                 BorderBrush="#2D2D2D"
-                BorderThickness="0,0,1,1"
+                BorderThickness="0,0,1,0"
                 ClipToBounds="True">
-                <Border.Style>
-                    <Style TargetType="Border">
-                        <Setter Property="Visibility" Value="Visible" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding CurrentViewMode}" Value="Batch">
-                                <Setter Property="Visibility" Value="Collapsed" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Border.Style>
                 <Grid>
                     <!-- 统一工作画板（纯白相纸底板、照片原图、遮罩与 PS 裁切框） -->
                     <Grid
@@ -690,24 +629,23 @@
                 </Grid>
             </Border>
 
-            <!-- 批量网格画廊预览 (ViewMode == Batch) -->
+            <!-- Row 2: 上下可拖拽分割条 -->
+            <GridSplitter
+                Grid.Row="2"
+                Height="5"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Center"
+                Background="#252526"
+                ShowsPreview="False"
+                Cursor="SizeNS" />
+
+            <!-- Row 3: 资源管理器平铺视图 (多行垂直上下滚动，无左右横滚) -->
             <Border
                 x:Name="BatchGalleryHost"
-                Grid.Row="1"
-                Background="#161616"
+                Grid.Row="3"
+                Background="#141414"
                 BorderBrush="#2D2D2D"
-                BorderThickness="0,0,1,1">
-                <Border.Style>
-                    <Style TargetType="Border">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding CurrentViewMode}" Value="Batch">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Border.Style>
-
+                BorderThickness="0,1,1,0">
                 <ListBox
                     x:Name="BatchGalleryList"
                     ItemsSource="{Binding Photos}"
@@ -715,21 +653,20 @@
                     SelectionMode="Extended"
                     Background="Transparent"
                     BorderThickness="0"
-                    Padding="16"
+                    Padding="12,10"
                     IsTextSearchEnabled="False"
                     KeyboardNavigation.DirectionalNavigation="None"
                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                    ScrollViewer.VerticalScrollBarVisibility="Auto"
-                    MouseDoubleClick="BatchGalleryList_MouseDoubleClick">
+                    ScrollViewer.VerticalScrollBarVisibility="Auto">
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <WrapPanel />
+                            <WrapPanel Orientation="Horizontal" />
                         </ItemsPanelTemplate>
                     </ListBox.ItemsPanel>
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
                             <Setter Property="Padding" Value="0" />
-                            <Setter Property="Margin" Value="6" />
+                            <Setter Property="Margin" Value="4" />
                             <Setter Property="Background" Value="Transparent" />
                             <Setter Property="BorderThickness" Value="0" />
                             <Setter Property="Template">
@@ -743,15 +680,21 @@
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <!-- 批量画廊单张卡片 -->
+                            <!-- 资源管理器风格平铺照片卡片 -->
                             <Border
-                                Width="190"
-                                Height="165"
-                                Background="#202020"
+                                Width="180"
+                                Height="145"
+                                Background="#1E1E1E"
                                 BorderThickness="2"
                                 BorderBrush="#2F2F2F"
                                 CornerRadius="4"
                                 Cursor="Hand">
+                                <Border.Opacity>
+                                    <MultiBinding Converter="{StaticResource DimMatchedOpacityConverter}">
+                                        <Binding Path="IsAspectMatched" />
+                                        <Binding Path="DataContext.DimMatchedPhotos" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </MultiBinding>
+                                </Border.Opacity>
                                 <Border.Style>
                                     <Style TargetType="Border">
                                         <Style.Triggers>
@@ -879,54 +822,6 @@
                                                 </Path.Data>
                                             </Path>
 
-                                            <!-- Fill 模式下：冲印相纸裁切取景框（高亮白框 + 清晰边界） -->
-                                            <Border
-                                                BorderBrush="#FFFFFF"
-                                                BorderThickness="1.5"
-                                                HorizontalAlignment="Left"
-                                                VerticalAlignment="Top"
-                                                IsHitTestVisible="False">
-                                                <Border.Visibility>
-                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropVisibility">
-                                                        <Binding Path="OriginalWidth" />
-                                                        <Binding Path="OriginalHeight" />
-                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="Mode" />
-                                                        <Binding Path="OffsetX" />
-                                                        <Binding Path="OffsetY" />
-                                                    </MultiBinding>
-                                                </Border.Visibility>
-                                                <Border.Width>
-                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropWidth">
-                                                        <Binding Path="OriginalWidth" />
-                                                        <Binding Path="OriginalHeight" />
-                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="Mode" />
-                                                        <Binding Path="OffsetX" />
-                                                        <Binding Path="OffsetY" />
-                                                    </MultiBinding>
-                                                </Border.Width>
-                                                <Border.Height>
-                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropHeight">
-                                                        <Binding Path="OriginalWidth" />
-                                                        <Binding Path="OriginalHeight" />
-                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="Mode" />
-                                                        <Binding Path="OffsetX" />
-                                                        <Binding Path="OffsetY" />
-                                                    </MultiBinding>
-                                                </Border.Height>
-                                                <Border.Margin>
-                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropMargin">
-                                                        <Binding Path="OriginalWidth" />
-                                                        <Binding Path="OriginalHeight" />
-                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="Mode" />
-                                                        <Binding Path="OffsetX" />
-                                                        <Binding Path="OffsetY" />
-                                                    </MultiBinding>
-                                                </Border.Margin>
-                                            </Border>
 
                                             <!-- 留白模式状态微标签 -->
                                             <Border
@@ -993,124 +888,6 @@
                 </ListBox>
             </Border>
 
-            <!--  底部胶卷缩略图条 (Filmstrip)  -->
-            <Border
-                Grid.Row="2"
-                Height="142"
-                Background="#141414"
-                BorderBrush="#282828"
-                BorderThickness="0,0,1,0">
-                <Border.Style>
-                    <Style TargetType="Border">
-                        <Setter Property="Visibility" Value="Visible" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding CurrentViewMode}" Value="Batch">
-                                <Setter Property="Visibility" Value="Collapsed" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Border.Style>
-                <Grid>
-                    <ListBox
-                        x:Name="FilmstripList"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        ItemsSource="{Binding Photos}"
-                        SelectedItem="{Binding SelectedPhoto}"
-                        SelectionMode="Extended"
-                        IsTextSearchEnabled="False"
-                        KeyboardNavigation.DirectionalNavigation="None"
-                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                        ScrollViewer.VerticalScrollBarVisibility="Disabled">
-                        <ListBox.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <VirtualizingStackPanel Orientation="Horizontal" />
-                            </ItemsPanelTemplate>
-                        </ListBox.ItemsPanel>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Border
-                                    Margin="4,6,4,2"
-                                    Width="94"
-                                    Height="102"
-                                    Background="#1E1E1E"
-                                    BorderThickness="2"
-                                    BorderBrush="#333333">
-                                    <Border.Style>
-                                        <Style TargetType="Border">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                                                    <Setter Property="BorderBrush" Value="#0078D4" />
-                                                    <Setter Property="Background" Value="#252526" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Style>
-                                    <Grid Margin="3">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="*" />
-                                            <RowDefinition Height="18" />
-                                        </Grid.RowDefinitions>
-                                        <Image
-                                            Grid.Row="0"
-                                            Source="{Binding Thumbnail}"
-                                            Stretch="Uniform" />
-                                        <Border
-                                            Grid.Row="0"
-                                            HorizontalAlignment="Right"
-                                            VerticalAlignment="Top"
-                                            Margin="1"
-                                            Padding="3,1"
-                                            Background="#CC1E1E1E"
-                                            BorderBrush="#666666"
-                                            BorderThickness="1"
-                                            CornerRadius="2">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="Visibility" Value="Collapsed" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Mode}" Value="Fit">
-                                                            <Setter Property="Visibility" Value="Visible" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <TextBlock
-                                                Text="留白"
-                                                FontSize="8"
-                                                Foreground="#E0E0E0"
-                                                FontWeight="Medium" />
-                                        </Border>
-                                        <TextBlock
-                                            Grid.Row="1"
-                                            Text="{Binding FileName}"
-                                            FontSize="10"
-                                            Foreground="#888888"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            TextTrimming="CharacterEllipsis" />
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-
-                    <!-- 胶卷左上角数量统计角标 -->
-                    <Border
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Top"
-                        Margin="8,4,0,0"
-                        Background="#CC000000"
-                        Padding="6,2"
-                        CornerRadius="2"
-                        IsHitTestVisible="False">
-                        <TextBlock
-                            Text="{Binding Photos.Count, StringFormat='{}{0} 张'}"
-                            FontSize="10"
-                            Foreground="#888888" />
-                    </Border>
-                </Grid>
-            </Border>
         </Grid>
 
         <!--  右侧属性设置面板  -->
@@ -1136,7 +913,6 @@
                             Background="#0078D4"
                             Command="{Binding ExportCommand}"
                             Content="批量开始导出"
-                            ToolTip="开始批量处理导出"
                             Cursor="Hand"
                             FontWeight="SemiBold"
                             FontSize="14"
@@ -1256,8 +1032,7 @@
                                     Foreground="#FFFFFF"
                                     FontWeight="Medium"
                                     FontSize="12"
-                                    TextTrimming="CharacterEllipsis"
-                                    ToolTip="{Binding SelectedPhoto.FilePath}" />
+                                    TextTrimming="CharacterEllipsis" />
                                 <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
                                     <TextBlock Text="原图像素: " FontSize="11" Foreground="#666666" />
                                     <TextBlock Text="{Binding SelectedPhoto.OriginalWidth}" FontSize="11" Foreground="#AAAAAA" />
@@ -1314,12 +1089,10 @@
                                     <RadioButton
                                         Style="{StaticResource IndustrialRadio}"
                                         Content="裁剪填充 (Fill)"
-                                        ToolTip="快捷键: F"
                                         IsChecked="{Binding SelectedMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Fill}" />
                                     <RadioButton
                                         Style="{StaticResource IndustrialRadio}"
                                         Content="留白完整 (Fit)"
-                                        ToolTip="快捷键: F"
                                         IsChecked="{Binding SelectedMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Fit}" />
                                 </StackPanel>
                             </StackPanel>

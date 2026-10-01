@@ -710,4 +710,25 @@ namespace AutoCutPic.Core
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
     }
+
+    /// <summary>
+    /// 当开启免修淡化且照片为同比例时，返回 0.38 不透明度（类似 Windows 剪切淡化视觉），否则返回 1.0
+    /// </summary>
+    public class DimMatchedOpacityConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (values == null || values.Length < 2)
+                return 1.0;
+
+            bool isMatched = values[0] is bool m && m;
+            bool dimEnabled = values[1] is bool d && d;
+
+            return (isMatched && dimEnabled) ? 0.38 : 1.0;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) =>
+            throw new NotImplementedException();
+    }
 }
+

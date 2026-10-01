@@ -207,18 +207,14 @@ public partial class MainWindow : Window
             return;
         }
 
-        var filmstrip = (ListBox?)FindName("FilmstripList");
         var batchGallery = (ListBox?)FindName("BatchGalleryList");
-        System.Collections.IList? selectedItems = _viewModel.CurrentViewMode == ViewMode.Batch && batchGallery?.SelectedItems?.Count > 0
+        System.Collections.IList? selectedItems = batchGallery?.SelectedItems?.Count > 0
             ? batchGallery.SelectedItems
-            : filmstrip?.SelectedItems;
+            : (_viewModel.SelectedPhoto != null ? new List<PhotoViewModel> { _viewModel.SelectedPhoto } : null);
 
         if (selectedItems == null || selectedItems.Count == 0)
         {
-            if (_viewModel.SelectedPhoto != null)
-                selectedItems = new List<PhotoViewModel> { _viewModel.SelectedPhoto };
-            else
-                return;
+            return;
         }
 
         // 基础步进 0.01，按下 Shift 提升 10 倍 (0.1)
@@ -269,14 +265,36 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SelectRelativePhoto(int offset)
+    private void SelectRelativePhoto(int direction)
     {
         if (!_viewModel.Photos.Any())
             return;
 
         int currentIndex = _viewModel.SelectedPhoto != null ? _viewModel.Photos.IndexOf(_viewModel.SelectedPhoto) : 0;
-        int newIndex = Math.Clamp(currentIndex + offset, 0, _viewModel.Photos.Count - 1);
-        _viewModel.SelectedPhoto = _viewModel.Photos[newIndex];
+        int step = direction > 0 ? 1 : -1;
+
+        if (_viewModel.DimMatchedPhotos && _viewModel.Photos.Any(p => !p.IsAspectMatched))
+        {
+            // 当开启淡化跳过开关时，向目标方向搜寻下一个未匹配同比例（需要裁切调整）的照片
+            int count = _viewModel.Photos.Count;
+            int targetIndex = currentIndex;
+            for (int i = 1; i <= count; i++)
+            {
+                int candidate = (currentIndex + (step * i) % count + count) % count;
+                if (!_viewModel.Photos[candidate].IsAspectMatched)
+                {
+                    targetIndex = candidate;
+                    break;
+                }
+            }
+            _viewModel.SelectedPhoto = _viewModel.Photos[targetIndex];
+        }
+        else
+        {
+            int newIndex = Math.Clamp(currentIndex + step, 0, _viewModel.Photos.Count - 1);
+            _viewModel.SelectedPhoto = _viewModel.Photos[newIndex];
+        }
+
         ScrollSelectedPhotoIntoView();
     }
 
@@ -288,21 +306,10 @@ public partial class MainWindow : Window
 
         Dispatcher.InvokeAsync(() =>
         {
-            if (_viewModel.CurrentViewMode == ViewMode.Batch)
+            var batchGallery = (ListBox?)FindName("BatchGalleryList");
+            if (batchGallery != null && batchGallery.IsVisible)
             {
-                var batchGallery = (ListBox?)FindName("BatchGalleryList");
-                if (batchGallery != null && batchGallery.IsVisible)
-                {
-                    batchGallery.ScrollIntoView(selected);
-                }
-            }
-            else
-            {
-                var filmstrip = (ListBox?)FindName("FilmstripList");
-                if (filmstrip != null && filmstrip.IsVisible)
-                {
-                    filmstrip.ScrollIntoView(selected);
-                }
+                batchGallery.ScrollIntoView(selected);
             }
         }, System.Windows.Threading.DispatcherPriority.Loaded);
     }

@@ -107,6 +107,20 @@ namespace AutoCutPic.ViewModels
             }
         }
 
+        private bool _isAspectMatched;
+        public bool IsAspectMatched
+        {
+            get => _isAspectMatched;
+            set
+            {
+                if (_isAspectMatched != value)
+                {
+                    _isAspectMatched = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public PhotoViewModel(string path)
         {
             FilePath = path;
@@ -176,9 +190,44 @@ namespace AutoCutPic.ViewModels
             get => _selectedSize;
             set
             {
-                _selectedSize = value;
-                OnPropertyChanged();
+                if (_selectedSize != value)
+                {
+                    _selectedSize = value;
+                    OnPropertyChanged();
+                    UpdateAspectMatchForAll();
+                }
             }
+        }
+
+        private bool _dimMatchedPhotos = true;
+        public bool DimMatchedPhotos
+        {
+            get => _dimMatchedPhotos;
+            set
+            {
+                if (_dimMatchedPhotos != value)
+                {
+                    _dimMatchedPhotos = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int AspectMatchedCount => Photos.Count(p => p.IsAspectMatched);
+        public int NeedAdjustCount => Photos.Count(p => !p.IsAspectMatched);
+
+        public void UpdateAspectMatchForAll()
+        {
+            if (SelectedSize == null) return;
+            foreach (var photo in Photos)
+            {
+                photo.IsAspectMatched = AutoCutPic.Core.Calculators.CropGeometryCalculator.IsAspectMatched(
+                    photo.OriginalWidth,
+                    photo.OriginalHeight,
+                    SelectedSize);
+            }
+            OnPropertyChanged(nameof(AspectMatchedCount));
+            OnPropertyChanged(nameof(NeedAdjustCount));
         }
 
         public CutMode SelectedMode
@@ -472,6 +521,7 @@ namespace AutoCutPic.ViewModels
             });
 
             IsLoading = false;
+            UpdateAspectMatchForAll();
             StatusText = $"已导入 {Photos.Count} 张照片";
             if (SelectedPhoto == null && Photos.Any())
             {
@@ -493,6 +543,7 @@ namespace AutoCutPic.ViewModels
                 photo.OriginalWidth = origW;
                 photo.OriginalHeight = origH;
                 photo.Thumbnail = thumb;
+                photo.IsAspectMatched = AutoCutPic.Core.Calculators.CropGeometryCalculator.IsAspectMatched(origW, origH, _selectedSize);
             }
             catch (Exception ex)
             {

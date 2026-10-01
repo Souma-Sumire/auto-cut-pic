@@ -252,5 +252,55 @@ namespace AutoCutPic.Core.Calculators
                 );
             }
         }
+
+        /// <summary>
+        /// 判断照片在目标冲印相纸下是否属于同比例或极度相似（裁切损失率低于阈值，默认1.5%）
+        /// </summary>
+        public static bool IsAspectMatched(
+            int photoWidth,
+            int photoHeight,
+            PhotoSize targetSize,
+            double tolerance = 0.015)
+        {
+            if (photoWidth <= 0 || photoHeight <= 0 || targetSize == null)
+                return false;
+
+            var paper = CalculateTargetPaperDimensions(targetSize, photoWidth, photoHeight);
+            double targetAR = (double)paper.Width / paper.Height;
+            double photoAR = (double)photoWidth / photoHeight;
+
+            double diff = Math.Abs(photoAR - targetAR) / targetAR;
+            return diff <= tolerance;
+        }
+
+        /// <summary>
+        /// 计算在填充（Fill）模式下，原图被裁剪抛弃的面积占原图总面积的比例
+        /// </summary>
+        public static double CalculateCropLossRatio(
+            int photoWidth,
+            int photoHeight,
+            PhotoSize targetSize)
+        {
+            if (photoWidth <= 0 || photoHeight <= 0 || targetSize == null)
+                return 0.0;
+
+            var paper = CalculateTargetPaperDimensions(targetSize, photoWidth, photoHeight);
+            double targetAR = (double)paper.Width / paper.Height;
+            double photoAR = (double)photoWidth / photoHeight;
+
+            if (photoAR > targetAR)
+            {
+                // 横向裁剪：宽度超出，裁剪后实际可见宽度为 photoHeight * targetAR
+                double visibleW = photoHeight * targetAR;
+                return Math.Max(0.0, 1.0 - (visibleW / photoWidth));
+            }
+            else
+            {
+                // 纵向裁剪：高度超出，裁剪后实际可见高度为 photoWidth / targetAR
+                double visibleH = photoWidth / targetAR;
+                return Math.Max(0.0, 1.0 - (visibleH / photoHeight));
+            }
+        }
     }
 }
+
