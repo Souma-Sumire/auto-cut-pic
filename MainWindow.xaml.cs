@@ -138,7 +138,10 @@ public partial class MainWindow : Window
         }
 
         var filmstrip = (ListBox)FindName("FilmstripList");
-        var selectedItems = (System.Collections.IList)filmstrip.SelectedItems;
+        var batchGallery = (ListBox)FindName("BatchGalleryList");
+        System.Collections.IList? selectedItems = _viewModel.CurrentViewMode == ViewMode.Batch && batchGallery?.SelectedItems?.Count > 0
+            ? batchGallery.SelectedItems
+            : filmstrip?.SelectedItems;
 
         bool isCtrl = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
         bool isShift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
@@ -190,8 +193,10 @@ public partial class MainWindow : Window
                 break;
 
             case Key.Space:
-                _viewModel.SelectedMode =
-                    _viewModel.SelectedMode == CutMode.Fill ? CutMode.Fit : CutMode.Fill;
+                var targetMode = (_viewModel.SelectedPhoto?.Mode ?? CutMode.Fill) == CutMode.Fill
+                    ? CutMode.Fit
+                    : CutMode.Fill;
+                _viewModel.SetModeBatch(selectedItems, targetMode);
                 e.Handled = true;
                 break;
 

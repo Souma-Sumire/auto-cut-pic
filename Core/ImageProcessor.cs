@@ -135,9 +135,11 @@ namespace AutoCutPic.Core
                         try
                         {
                             using var image = LoadImage(item.FilePath);
+                            var effectiveMode = item.Mode ?? settings.Mode;
+                            var itemSettings = effectiveMode == settings.Mode ? settings : settings with { Mode = effectiveMode };
                             using var processed = ProcessImage(
                                 image,
-                                settings,
+                                itemSettings,
                                 item.OffsetX,
                                 item.OffsetY
                             );

@@ -81,7 +81,37 @@ namespace AutoCutPic.Tests
 
             vm.AlignBatch(list, AlignmentDirection.Center);
             Assert.Equal(0.0, p1.OffsetX);
-            Assert.Equal(0.0, p1.OffsetY);
+            Assert.Equal(0.0, p2.OffsetY);
+        }
+
+        [Fact]
+        public void PhotoViewModel_Mode_ShouldBeIndependentAndFollowSelectedPhoto()
+        {
+            var p1 = new PhotoViewModel("dummy1.jpg") { Mode = CutMode.Fill };
+            var p2 = new PhotoViewModel("dummy2.jpg") { Mode = CutMode.Fit };
+            var list = new List<PhotoViewModel> { p1, p2 };
+
+            var vm = new MainViewModel();
+            foreach (var p in list)
+            {
+                vm.Photos.Add(p);
+            }
+
+            vm.SelectedPhoto = p1;
+            Assert.Equal(CutMode.Fill, vm.SelectedMode);
+
+            vm.SelectedPhoto = p2;
+            Assert.Equal(CutMode.Fit, vm.SelectedMode);
+
+            // 修改 SelectedMode 仅改变当前选中照片
+            vm.SelectedMode = CutMode.Fill;
+            Assert.Equal(CutMode.Fill, p2.Mode);
+            Assert.Equal(CutMode.Fill, p1.Mode);
+
+            // 批量将 p1 改为 Fit，p2 不受影响
+            vm.SetModeBatch(new[] { p1 }, CutMode.Fit);
+            Assert.Equal(CutMode.Fit, p1.Mode);
+            Assert.Equal(CutMode.Fill, p2.Mode);
         }
     }
 }

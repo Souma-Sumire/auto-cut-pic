@@ -55,11 +55,9 @@ namespace AutoCutPic.Core
         Fit,  // 留白完整
     }
 
-    public class CropSettings
+    public record CropSettings
     {
         public required PhotoSize TargetSize { get; set; }
         public CutMode Mode { get; set; }
-
-        public CropSettings Clone() => (CropSettings)MemberwiseClone();
     }
 }

@@ -12,7 +12,8 @@ namespace AutoCutPic.Core.Abstractions
     public readonly record struct PhotoExportItem(
         string FilePath,
         double OffsetX,
-        double OffsetY
+        double OffsetY,
+        CutMode? Mode = null
     );
 
     /// <summary>

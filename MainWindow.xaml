@@ -599,7 +599,7 @@
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="Mode" />
                                                         <Binding Path="OffsetX" />
                                                         <Binding Path="OffsetY" />
                                                     </MultiBinding>
@@ -609,7 +609,7 @@
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="Mode" />
                                                         <Binding Path="OffsetX" />
                                                         <Binding Path="OffsetY" />
                                                     </MultiBinding>
@@ -619,7 +619,7 @@
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="Mode" />
                                                         <Binding Path="OffsetX" />
                                                         <Binding Path="OffsetY" />
                                                     </MultiBinding>
@@ -629,7 +629,7 @@
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="Mode" />
                                                         <Binding Path="OffsetX" />
                                                         <Binding Path="OffsetY" />
                                                     </MultiBinding>
@@ -648,7 +648,7 @@
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="Mode" />
                                                         <Binding Path="OffsetX" />
                                                         <Binding Path="OffsetY" />
                                                     </MultiBinding>
@@ -658,7 +658,7 @@
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="Mode" />
                                                         <Binding Path="OffsetX" />
                                                         <Binding Path="OffsetY" />
                                                     </MultiBinding>
@@ -668,7 +668,7 @@
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="Mode" />
                                                         <Binding Path="OffsetX" />
                                                         <Binding Path="OffsetY" />
                                                     </MultiBinding>
@@ -684,7 +684,7 @@
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="Mode" />
                                                         <Binding Path="OffsetX" />
                                                         <Binding Path="OffsetY" />
                                                     </MultiBinding>
@@ -703,7 +703,7 @@
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="Mode" />
                                                         <Binding Path="OffsetX" />
                                                         <Binding Path="OffsetY" />
                                                     </MultiBinding>
@@ -713,7 +713,7 @@
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="Mode" />
                                                         <Binding Path="OffsetX" />
                                                         <Binding Path="OffsetY" />
                                                     </MultiBinding>
@@ -723,7 +723,7 @@
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="Mode" />
                                                         <Binding Path="OffsetX" />
                                                         <Binding Path="OffsetY" />
                                                     </MultiBinding>
@@ -733,11 +733,35 @@
                                                         <Binding Path="OriginalWidth" />
                                                         <Binding Path="OriginalHeight" />
                                                         <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="DataContext.SelectedMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="Mode" />
                                                         <Binding Path="OffsetX" />
                                                         <Binding Path="OffsetY" />
                                                     </MultiBinding>
                                                 </Border.Margin>
+                                            </Border>
+
+                                            <!-- 独立留白模式提示胶囊徽标 -->
+                                            <Border
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Top"
+                                                Margin="6"
+                                                Background="#CC1F1F1F"
+                                                BorderBrush="#44FFFFFF"
+                                                BorderThickness="1"
+                                                CornerRadius="2"
+                                                Padding="4,1"
+                                                IsHitTestVisible="False">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Mode}" Value="Fit">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="留白" FontSize="9" Foreground="#CCCCCC" FontWeight="Medium" />
                                             </Border>
                                         </Grid>
                                     </Border>
@@ -832,6 +856,32 @@
                                             Grid.Row="0"
                                             Source="{Binding Thumbnail}"
                                             Stretch="Uniform" />
+                                        <Border
+                                            Grid.Row="0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Top"
+                                            Margin="1"
+                                            Padding="3,1"
+                                            Background="#CC1E1E1E"
+                                            BorderBrush="#666666"
+                                            BorderThickness="1"
+                                            CornerRadius="2">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Mode}" Value="Fit">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock
+                                                Text="留白"
+                                                FontSize="8"
+                                                Foreground="#E0E0E0"
+                                                FontWeight="Medium" />
+                                        </Border>
                                         <TextBlock
                                             Grid.Row="1"
                                             Text="{Binding FileName}"

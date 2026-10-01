@@ -92,6 +92,21 @@ namespace AutoCutPic.ViewModels
             }
         }
 
+        private CutMode _mode = CutMode.Fill;
+
+        public CutMode Mode
+        {
+            get => _mode;
+            set
+            {
+                if (_mode != value)
+                {
+                    _mode = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public PhotoViewModel(string path)
         {
             FilePath = path;
@@ -168,10 +183,14 @@ namespace AutoCutPic.ViewModels
 
         public CutMode SelectedMode
         {
-            get => _selectedMode;
+            get => _selectedPhoto?.Mode ?? _selectedMode;
             set
             {
                 _selectedMode = value;
+                if (_selectedPhoto != null)
+                {
+                    _selectedPhoto.Mode = value;
+                }
                 OnPropertyChanged();
             }
         }
@@ -198,6 +217,7 @@ namespace AutoCutPic.ViewModels
                 {
                     _selectedPhoto = value;
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(SelectedMode));
                     OnSelectedPhotoChanged(value);
                 }
             }
@@ -495,6 +515,16 @@ namespace AutoCutPic.ViewModels
             }
         }
 
+        public void SetModeBatch(IEnumerable items, CutMode mode)
+        {
+            foreach (PhotoViewModel photo in items)
+            {
+                photo.Mode = mode;
+            }
+            _selectedMode = mode;
+            OnPropertyChanged(nameof(SelectedMode));
+        }
+
         private async Task ExecuteExport()
         {
             if (!Photos.Any())
@@ -507,7 +537,7 @@ namespace AutoCutPic.ViewModels
             string outputFolder = Path.Combine(firstFileDir, "Clipped_Photos");
 
             var exportItems = Photos
-                .Select(p => new PhotoExportItem(p.FilePath, p.OffsetX, p.OffsetY))
+                .Select(p => new PhotoExportItem(p.FilePath, p.OffsetX, p.OffsetY, p.Mode))
                 .ToList();
 
             var cropSettings = new CropSettings

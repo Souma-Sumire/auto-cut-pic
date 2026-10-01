@@ -95,6 +95,66 @@ namespace AutoCutPic.Tests
         }
 
         [Fact]
+        public async Task ExportBatchAsync_WithMixedPhotoModes_ShouldRespectIndividualPhotoModes()
+        {
+            string imgFill = Path.Combine(_testDir, "fill.jpg");
+            string imgFit = Path.Combine(_testDir, "fit.jpg");
+
+            // 800x400 原图（宽高比 2:1，而6寸相纸为 1.49:1）
+            using (var m1 = new MagickImage(MagickColors.Red, 800, 400))
+            {
+                m1.Write(imgFill);
+            }
+            using (var m2 = new MagickImage(MagickColors.Blue, 800, 400))
+            {
+                m2.Write(imgFit);
+            }
+
+            var processor = ImageProcessor.Instance;
+            var items = new List<PhotoExportItem>
+            {
+                new(imgFill, 0, 0, CutMode.Fill),
+                new(imgFit, 0, 0, CutMode.Fit)
+            };
+
+            // 全局默认 settings 设为 Fill，但 imgFit 应该按自身的 Fit 导出
+            var settings = new CropSettings
+            {
+                TargetSize = PhotoSize.Inch6,
+                Mode = CutMode.Fill
+            };
+
+            string outDir = Path.Combine(_testDir, "OutMixed");
+            var result = await processor.ExportBatchAsync(items, settings, outDir);
+
+            Assert.Equal(2, result.SuccessCount);
+
+            string outFill = Path.Combine(outDir, "fill_6寸.jpg");
+            string outFit = Path.Combine(outDir, "fit_6寸.jpg");
+            Assert.True(File.Exists(outFill));
+            Assert.True(File.Exists(outFit));
+
+            using var verifyFill = new MagickImage(outFill);
+            using var verifyFit = new MagickImage(outFit);
+
+            // 两者分辨率均为 6寸相纸标准
+            Assert.Equal(1795u, verifyFill.Width);
+            Assert.Equal(1205u, verifyFill.Height);
+            Assert.Equal(1795u, verifyFit.Width);
+            Assert.Equal(1205u, verifyFit.Height);
+
+            // Fit 模式下由于相纸上下或左右留白，边缘应包含纯白相纸像素 (允许 JPEG 微小压缩容差)
+            var topPixelFit = verifyFit.GetPixels().GetPixel(100, 0).ToColor();
+            Assert.NotNull(topPixelFit);
+            Assert.True(topPixelFit.R >= 250 && topPixelFit.G >= 250 && topPixelFit.B >= 250, "Fit 模式相纸边缘应为纯白留白");
+
+            // Fill 模式下画面填满裁切（纯红原图），无白色背景留边
+            var topPixelFill = verifyFill.GetPixels().GetPixel(100, 0).ToColor();
+            Assert.NotNull(topPixelFill);
+            Assert.True(topPixelFill.R >= 250 && topPixelFill.B <= 10, "Fill 模式应填满红色原图且无蓝白色留边");
+        }
+
+        [Fact]
         public async Task ExportBatchAsync_WhenCancelled_ShouldSetIsCancelled()
         {
             string img1 = Path.Combine(_testDir, "cancel_test.jpg");
