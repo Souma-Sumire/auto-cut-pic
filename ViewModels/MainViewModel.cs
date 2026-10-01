@@ -371,8 +371,12 @@ namespace AutoCutPic.ViewModels
             get => _isLoading;
             set
             {
-                _isLoading = value;
-                OnPropertyChanged();
+                if (_isLoading != value)
+                {
+                    _isLoading = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsDropOverlayVisible));
+                }
             }
         }
 
@@ -654,15 +658,11 @@ namespace AutoCutPic.ViewModels
         {
             if (allFiles == null || allFiles.Length == 0) return;
 
-            bool isFirst = Photos.Count == 0;
-            if (isFirst)
-            {
-                IsInitialLoading = true;
-            }
             IsLoading = true;
             LoadingProgress = 0;
-            LoadingStatusText = $"正在导入照片 (0/{allFiles.Length})...";
+            LoadingStatusText = $"正在准备导入照片 (0/{allFiles.Length})...";
             Photos.Clear();
+            OnPropertyChanged(nameof(IsDropOverlayVisible));
 
             var photoList = allFiles.Select(f => new PhotoViewModel(f)).ToList();
             foreach (var p in photoList)
@@ -692,7 +692,7 @@ namespace AutoCutPic.ViewModels
                         {
                             LoadingProgress = pct;
                             LoadingStatusText = $"正在载入第 {current}/{total} 张 ({pct:F0}%): {name}";
-                        }, System.Windows.Threading.DispatcherPriority.Background);
+                        }, System.Windows.Threading.DispatcherPriority.Normal);
                     }
                     else
                     {
@@ -701,6 +701,11 @@ namespace AutoCutPic.ViewModels
                     }
                 });
             });
+
+            // 保持 100% 完成态短暂呈现，给用户清晰的视觉闭环
+            LoadingProgress = 100.0;
+            LoadingStatusText = $"已完成全部 {total} 张照片载入";
+            await Task.Delay(200);
 
             IsLoading = false;
             IsInitialLoading = false;

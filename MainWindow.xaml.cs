@@ -364,14 +364,24 @@ public partial class MainWindow : Window
     {
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
-            string[] droppedPaths = (string[])e.Data.GetData(DataFormats.FileDrop);
-            var allFiles = GetAllFiles(droppedPaths).ToArray();
+            string[]? droppedPaths = (string[]?)e.Data.GetData(DataFormats.FileDrop);
+            if (droppedPaths == null || droppedPaths.Length == 0) return;
+
+            _viewModel.IsLoading = true;
+            _viewModel.LoadingProgress = 0;
+            _viewModel.LoadingStatusText = "正在扫描照片文件...";
+
+            var allFiles = await Task.Run(() => GetAllFiles(droppedPaths).ToArray());
 
             if (allFiles.Length > 0)
             {
                 await _viewModel.LoadFiles(allFiles);
                 Focus();
                 ScrollSelectedPhotoIntoView();
+            }
+            else
+            {
+                _viewModel.IsLoading = false;
             }
         }
     }
@@ -385,12 +395,20 @@ public partial class MainWindow : Window
 
         if (dialog.ShowDialog() == true)
         {
-            var allFiles = GetAllFiles(new[] { dialog.FolderName }).ToArray();
+            _viewModel.IsLoading = true;
+            _viewModel.LoadingProgress = 0;
+            _viewModel.LoadingStatusText = "正在扫描文件夹中的照片...";
+
+            var allFiles = await Task.Run(() => GetAllFiles(new[] { dialog.FolderName }).ToArray());
             if (allFiles.Length > 0)
             {
                 await _viewModel.LoadFiles(allFiles);
                 Focus();
                 ScrollSelectedPhotoIntoView();
+            }
+            else
+            {
+                _viewModel.IsLoading = false;
             }
         }
     }
@@ -406,12 +424,20 @@ public partial class MainWindow : Window
 
         if (dialog.ShowDialog() == true)
         {
-            var allFiles = GetAllFiles(dialog.FileNames).ToArray();
+            _viewModel.IsLoading = true;
+            _viewModel.LoadingProgress = 0;
+            _viewModel.LoadingStatusText = "正在读取照片文件...";
+
+            var allFiles = await Task.Run(() => GetAllFiles(dialog.FileNames).ToArray());
             if (allFiles.Length > 0)
             {
                 await _viewModel.LoadFiles(allFiles);
                 Focus();
                 ScrollSelectedPhotoIntoView();
+            }
+            else
+            {
+                _viewModel.IsLoading = false;
             }
         }
     }
