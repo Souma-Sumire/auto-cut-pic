@@ -10,7 +10,8 @@
     MinWidth="960"
     MinHeight="640"
     Background="#1E1E1E"
-    Foreground="#CCCCCC">
+    Foreground="#CCCCCC"
+    InputMethod.IsInputMethodEnabled="False">
     <Window.Resources>
         <core:ZoomToWidthConverter x:Key="ZoomToWidthConverter" />
         <core:CropMarginConverter x:Key="CropMarginConverter" />
@@ -747,7 +748,7 @@
                                 Width="190"
                                 Height="165"
                                 Background="#202020"
-                                BorderThickness="1.5"
+                                BorderThickness="2"
                                 BorderBrush="#2F2F2F"
                                 CornerRadius="4"
                                 Cursor="Hand">
@@ -758,14 +759,7 @@
                                                 <Setter Property="BorderBrush" Value="#555555" />
                                             </Trigger>
                                             <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                                                <Setter Property="BorderBrush" Value="#0080FF" />
-                                                <Setter Property="BorderThickness" Value="2.5" />
-                                                <Setter Property="Background" Value="#1B2633" />
-                                                <Setter Property="Effect">
-                                                    <Setter.Value>
-                                                        <DropShadowEffect BlurRadius="14" Color="#0078D4" Opacity="0.6" ShadowDepth="0" />
-                                                    </Setter.Value>
-                                                </Setter>
+                                                <Setter Property="BorderBrush" Value="#0078D4" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -956,38 +950,6 @@
                                                     </Style>
                                                 </Border.Style>
                                                 <TextBlock Text="留白" FontSize="9" Foreground="#CCCCCC" FontWeight="Medium" />
-                                            </Border>
-
-                                            <!-- 选中指示徽标 (高亮对勾圆形徽章) -->
-                                            <Border
-                                                HorizontalAlignment="Left"
-                                                VerticalAlignment="Top"
-                                                Margin="6"
-                                                Width="20"
-                                                Height="20"
-                                                CornerRadius="10"
-                                                Background="#0080FF"
-                                                BorderBrush="#FFFFFF"
-                                                BorderThickness="1.5"
-                                                IsHitTestVisible="False">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                                                                <Setter Property="Visibility" Value="Visible" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <Path
-                                                    Data="M 5,10 L 8,13 L 15,6"
-                                                    Stroke="White"
-                                                    StrokeThickness="2"
-                                                    StrokeStartLineCap="Round"
-                                                    StrokeEndLineCap="Round"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center" />
                                             </Border>
                                         </Grid>
                                     </Border>
@@ -1397,7 +1359,7 @@
                                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Q / E" Foreground="#CCCCCC" FontSize="11" />
                                     <TextBlock Grid.Row="2" Grid.Column="1" Text="切换上一张 / 下一张照片" Foreground="#888888" FontSize="11" Margin="8,0,0,0" />
 
-                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="F 键 / 边框⟲" Foreground="#CCCCCC" FontSize="11" />
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="F 键" Foreground="#CCCCCC" FontSize="11" />
                                     <TextBlock Grid.Row="3" Grid.Column="1" Text="切换裁剪填充 / 留白模式 (Fill/Fit)" Foreground="#888888" FontSize="11" Margin="8,0,0,0" />
 
                                     <TextBlock Grid.Row="4" Grid.Column="0" Text="WASD / 方向键" Foreground="#CCCCCC" FontSize="11" />

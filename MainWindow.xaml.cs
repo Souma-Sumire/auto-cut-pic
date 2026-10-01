@@ -32,6 +32,19 @@ public partial class MainWindow : Window
         AllowDrop = true;
         Drop += MainWindow_Drop;
         PreviewKeyDown += MainWindow_PreviewKeyDown;
+        Loaded += (_, _) =>
+        {
+            Focus();
+            ScrollSelectedPhotoIntoView();
+        };
+        _viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(MainViewModel.SelectedPhoto) ||
+                args.PropertyName == nameof(MainViewModel.CurrentViewMode))
+            {
+                ScrollSelectedPhotoIntoView();
+            }
+        };
         Closed += (_, _) => Application.Current?.Shutdown();
     }
 
@@ -143,19 +156,23 @@ public partial class MainWindow : Window
 
     private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        Key key = e.Key == Key.ImeProcessed ? e.ImeProcessedKey : e.Key;
         bool isCtrl = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
         bool isShift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
 
         // G: 切换批量画廊 / 单张精调视图
-        if (e.Key == Key.G)
+        if (key == Key.G)
         {
-            _viewModel.ToggleViewMode();
+            if (_viewModel.Photos.Any())
+            {
+                _viewModel.ToggleViewMode();
+            }
             e.Handled = true;
             return;
         }
 
         // Esc: 单张精调视图下按 Esc 返回批量画廊
-        if (e.Key == Key.Escape)
+        if (key == Key.Escape)
         {
             if (_viewModel.CurrentViewMode == ViewMode.Single && _viewModel.Photos.Any())
             {
@@ -166,7 +183,7 @@ public partial class MainWindow : Window
         }
 
         // Enter: 批量画廊视图下，按 Enter 进入单张精调当前选中的照片
-        if (e.Key == Key.Enter)
+        if (key == Key.Enter)
         {
             if (_viewModel.CurrentViewMode == ViewMode.Batch && _viewModel.SelectedPhoto != null)
             {
@@ -177,21 +194,21 @@ public partial class MainWindow : Window
         }
 
         // Q/E 快捷切换上一张/下一张
-        if (e.Key == Key.Q)
+        if (key == Key.Q)
         {
             SelectRelativePhoto(-1);
             e.Handled = true;
             return;
         }
-        if (e.Key == Key.E)
+        if (key == Key.E)
         {
             SelectRelativePhoto(1);
             e.Handled = true;
             return;
         }
 
-        var filmstrip = (ListBox)FindName("FilmstripList");
-        var batchGallery = (ListBox)FindName("BatchGalleryList");
+        var filmstrip = (ListBox?)FindName("FilmstripList");
+        var batchGallery = (ListBox?)FindName("BatchGalleryList");
         System.Collections.IList? selectedItems = _viewModel.CurrentViewMode == ViewMode.Batch && batchGallery?.SelectedItems?.Count > 0
             ? batchGallery.SelectedItems
             : filmstrip?.SelectedItems;
@@ -207,7 +224,7 @@ public partial class MainWindow : Window
         // 基础步进 0.01，按下 Shift 提升 10 倍 (0.1)
         double step = isShift ? 0.1 : 0.01;
 
-        switch (e.Key)
+        switch (key)
         {
             case Key.W:
             case Key.Up:
@@ -260,9 +277,34 @@ public partial class MainWindow : Window
         int currentIndex = _viewModel.SelectedPhoto != null ? _viewModel.Photos.IndexOf(_viewModel.SelectedPhoto) : 0;
         int newIndex = Math.Clamp(currentIndex + offset, 0, _viewModel.Photos.Count - 1);
         _viewModel.SelectedPhoto = _viewModel.Photos[newIndex];
+        ScrollSelectedPhotoIntoView();
+    }
 
-        var filmstrip = (ListBox)FindName("FilmstripList");
-        filmstrip?.ScrollIntoView(_viewModel.SelectedPhoto);
+    private void ScrollSelectedPhotoIntoView()
+    {
+        var selected = _viewModel.SelectedPhoto;
+        if (selected == null)
+            return;
+
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (_viewModel.CurrentViewMode == ViewMode.Batch)
+            {
+                var batchGallery = (ListBox?)FindName("BatchGalleryList");
+                if (batchGallery != null && batchGallery.IsVisible)
+                {
+                    batchGallery.ScrollIntoView(selected);
+                }
+            }
+            else
+            {
+                var filmstrip = (ListBox?)FindName("FilmstripList");
+                if (filmstrip != null && filmstrip.IsVisible)
+                {
+                    filmstrip.ScrollIntoView(selected);
+                }
+            }
+        }, System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     private async void MainWindow_Drop(object sender, DragEventArgs e)
@@ -275,6 +317,8 @@ public partial class MainWindow : Window
             if (allFiles.Length > 0)
             {
                 await _viewModel.LoadFiles(allFiles);
+                Focus();
+                ScrollSelectedPhotoIntoView();
             }
         }
     }
@@ -292,6 +336,8 @@ public partial class MainWindow : Window
             if (allFiles.Length > 0)
             {
                 await _viewModel.LoadFiles(allFiles);
+                Focus();
+                ScrollSelectedPhotoIntoView();
             }
         }
     }
@@ -311,6 +357,8 @@ public partial class MainWindow : Window
             if (allFiles.Length > 0)
             {
                 await _viewModel.LoadFiles(allFiles);
+                Focus();
+                ScrollSelectedPhotoIntoView();
             }
         }
     }
