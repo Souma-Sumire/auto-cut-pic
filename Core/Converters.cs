@@ -127,20 +127,20 @@ namespace AutoCutPic.Core
         }
     }
 
-    public readonly record struct ViewportGeometry(
-        double PaperWidth,
-        double PaperHeight,
-        double ImgWidth,
-        double ImgHeight,
-        double ImgLeft,
-        double ImgTop,
+    public readonly record struct PsWorkbenchGeometry(
+        double DispWidth,
+        double DispHeight,
+        double CropWidth,
+        double CropHeight,
+        double CropX,
+        double CropY,
         double ExcessW,
         double ExcessH
     );
 
-    public static class ViewportMath
+    public static class PsWorkbenchMath
     {
-        public static ViewportGeometry Calculate(
+        public static PsWorkbenchGeometry Calculate(
             double viewportW,
             double viewportH,
             int origW,
@@ -151,60 +151,80 @@ namespace AutoCutPic.Core
             CutMode mode
         )
         {
-            if (viewportW <= 20 || viewportH <= 20 || origW <= 0 || origH <= 0 || targetSize == null)
+            if (viewportW <= 40 || viewportH <= 40 || origW <= 0 || origH <= 0 || targetSize == null)
                 return default;
 
+            // 预留工作台四周安全边距 50px
+            double availW = Math.Max(50, viewportW - 50);
+            double availH = Math.Max(50, viewportH - 50);
+
+            // 照片按 Uniform 比例缩放到工作台尺寸
+            double photoScale = Math.Min(availW / origW, availH / origH);
+            double dispW = Math.Max(10, origW * photoScale);
+            double dispH = Math.Max(10, origH * photoScale);
+
+            // 目标相纸长宽比（自适应横竖构图）
             bool isPortrait = origH > origW;
             int baseW = Math.Max(targetSize.PixelWidth, targetSize.PixelHeight);
             int baseH = Math.Min(targetSize.PixelWidth, targetSize.PixelHeight);
-
             int targetW = isPortrait ? baseH : baseW;
             int targetH = isPortrait ? baseW : baseH;
 
-            // 视口预留 40 像素边距
-            double maxW = Math.Max(50, viewportW - 40);
-            double maxH = Math.Max(50, viewportH - 40);
+            double targetAR = (double)targetW / targetH;
+            double photoAR = (double)origW / origH;
 
-            double paperScale = Math.Min(maxW / targetW, maxH / targetH);
-            double paperW = targetW * paperScale;
-            double paperH = targetH * paperScale;
-
-            double imgScale, imgW, imgH, excessW, excessH, imgLeft, imgTop;
+            double cropW, cropH, cropX, cropY, excessW, excessH;
 
             if (mode == CutMode.Fill)
             {
-                imgScale = Math.Max(paperW / origW, paperH / origH);
-                imgW = origW * imgScale;
-                imgH = origH * imgScale;
-                excessW = Math.Max(0, imgW - paperW);
-                excessH = Math.Max(0, imgH - paperH);
-                imgLeft = -(excessW / 2.0) - (offsetX * excessW);
-                imgTop = -(excessH / 2.0) - (offsetY * excessH);
+                if (photoAR > targetAR)
+                {
+                    // 原图比相纸更宽：高度贴满照片，裁切宽度
+                    cropH = dispH;
+                    cropW = dispH * targetAR;
+                    excessW = Math.Max(0, dispW - cropW);
+                    excessH = 0;
+                    cropX = (excessW / 2.0) + (offsetX * excessW);
+                    cropY = 0;
+                }
+                else
+                {
+                    // 原图比相纸更窄/更高：宽度贴满照片，裁切高度
+                    cropW = dispW;
+                    cropH = dispW / targetAR;
+                    excessW = 0;
+                    excessH = Math.Max(0, dispH - cropH);
+                    cropX = 0;
+                    cropY = (excessH / 2.0) + (offsetY * excessH);
+                }
             }
             else
             {
-                imgScale = Math.Min(paperW / origW, paperH / origH);
-                imgW = origW * imgScale;
-                imgH = origH * imgScale;
+                // Fit 留白模式：整张照片完整保留
+                cropW = dispW;
+                cropH = dispH;
+                cropX = 0;
+                cropY = 0;
                 excessW = 0;
                 excessH = 0;
-                imgLeft = (paperW - imgW) / 2.0;
-                imgTop = (paperH - imgH) / 2.0;
             }
 
-            return new ViewportGeometry(paperW, paperH, imgW, imgH, imgLeft, imgTop, excessW, excessH);
+            cropX = Math.Max(0, Math.Min(cropX, dispW - cropW));
+            cropY = Math.Max(0, Math.Min(cropY, dispH - cropH));
+
+            return new PsWorkbenchGeometry(dispW, dispH, cropW, cropH, cropX, cropY, excessW, excessH);
         }
     }
 
-    public class ViewportPaperSizeConverter : IMultiValueConverter
+    public class PsPhotoCanvasSizeConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
-            if (values == null || values.Length < 6) return 200.0;
+            if (values == null || values.Length < 6) return 300.0;
             for (int i = 0; i < values.Length; i++)
             {
                 if (values[i] == DependencyProperty.UnsetValue || values[i] == null)
-                    return 200.0;
+                    return 300.0;
             }
 
             double vw = values[0] is double w ? w : 400;
@@ -214,23 +234,23 @@ namespace AutoCutPic.Core
             PhotoSize size = values[4] is PhotoSize ps ? ps : PhotoSize.Inch6;
             CutMode mode = values[5] is CutMode m ? m : CutMode.Fill;
 
-            var geo = ViewportMath.Calculate(vw, vh, origW, origH, 0, 0, size, mode);
-            return parameter?.ToString() == "Width" ? Math.Max(10, geo.PaperWidth) : Math.Max(10, geo.PaperHeight);
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, 0, 0, size, mode);
+            return parameter?.ToString() == "Width" ? Math.Max(10, geo.DispWidth) : Math.Max(10, geo.DispHeight);
         }
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
 
-    public class ViewportImgSizeConverter : IMultiValueConverter
+    public class PsCropBoxSizeConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
-            if (values == null || values.Length < 8) return 200.0;
+            if (values == null || values.Length < 8) return 300.0;
             for (int i = 0; i < values.Length; i++)
             {
                 if (values[i] == DependencyProperty.UnsetValue || values[i] == null)
-                    return 200.0;
+                    return 300.0;
             }
 
             double vw = values[0] is double w ? w : 400;
@@ -242,15 +262,15 @@ namespace AutoCutPic.Core
             PhotoSize size = values[6] is PhotoSize ps ? ps : PhotoSize.Inch6;
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
-            var geo = ViewportMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
-            return parameter?.ToString() == "Width" ? Math.Max(1, geo.ImgWidth) : Math.Max(1, geo.ImgHeight);
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
+            return parameter?.ToString() == "Width" ? Math.Max(10, geo.CropWidth) : Math.Max(10, geo.CropHeight);
         }
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
 
-    public class ViewportImgMarginConverter : IMultiValueConverter
+    public class PsCropBoxMarginConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
@@ -270,8 +290,44 @@ namespace AutoCutPic.Core
             PhotoSize size = values[6] is PhotoSize ps ? ps : PhotoSize.Inch6;
             CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
 
-            var geo = ViewportMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
-            return new Thickness(geo.ImgLeft, geo.ImgTop, 0, 0);
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
+            return new Thickness(geo.CropX, geo.CropY, 0, 0);
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    public class PsCropMaskConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (values == null || values.Length < 8) return Geometry.Empty;
+            for (int i = 0; i < values.Length; i++)
+            {
+                if (values[i] == DependencyProperty.UnsetValue || values[i] == null)
+                    return Geometry.Empty;
+            }
+
+            double vw = values[0] is double w ? w : 400;
+            double vh = values[1] is double h ? h : 300;
+            int origW = values[2] is int ow ? ow : 1;
+            int origH = values[3] is int oh ? oh : 1;
+            double ox = values[4] is double x ? x : 0;
+            double oy = values[5] is double y ? y : 0;
+            PhotoSize size = values[6] is PhotoSize ps ? ps : PhotoSize.Inch6;
+            CutMode mode = values[7] is CutMode m ? m : CutMode.Fill;
+
+            if (mode == CutMode.Fit)
+                return Geometry.Empty;
+
+            var geo = PsWorkbenchMath.Calculate(vw, vh, origW, origH, ox, oy, size, mode);
+            if (geo.DispWidth <= 0 || geo.DispHeight <= 0)
+                return Geometry.Empty;
+
+            var fullRect = new RectangleGeometry(new Rect(0, 0, geo.DispWidth, geo.DispHeight));
+            var cropRect = new RectangleGeometry(new Rect(geo.CropX, geo.CropY, geo.CropWidth, geo.CropHeight));
+            return new CombinedGeometry(GeometryCombineMode.Exclude, fullRect, cropRect);
         }
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
@@ -286,13 +342,22 @@ namespace AutoCutPic.Core
             return 100 * zoom;
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-            => throw new NotImplementedException();
+        public object ConvertBack(
+            object value,
+            Type targetType,
+            object parameter,
+            CultureInfo culture
+        ) => throw new NotImplementedException();
     }
 
     public class CropMarginConverter : IMultiValueConverter
     {
-        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        public object Convert(
+            object[] values,
+            Type targetType,
+            object parameter,
+            CultureInfo culture
+        )
         {
             if (!CropMath.TryParseArgs(values, out double containerSize, out int origW, out int origH, out double ox, out double oy, out PhotoSize size, out CutMode mode))
                 return new Thickness(0);
@@ -301,13 +366,22 @@ namespace AutoCutPic.Core
             return new Thickness(geo.CropX, geo.CropY, 0, 0);
         }
 
-        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
-            => throw new NotImplementedException();
+        public object[] ConvertBack(
+            object value,
+            Type[] targetTypes,
+            object parameter,
+            CultureInfo culture
+        ) => throw new NotImplementedException();
     }
 
     public class CropSizeConverter : IMultiValueConverter
     {
-        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        public object Convert(
+            object[] values,
+            Type targetType,
+            object parameter,
+            CultureInfo culture
+        )
         {
             if (!CropMath.TryParseArgs(values, out double containerSize, out int origW, out int origH, out double ox, out double oy, out PhotoSize size, out CutMode mode))
                 return 0.0;
@@ -316,13 +390,22 @@ namespace AutoCutPic.Core
             return parameter?.ToString() == "Width" ? geo.CropWidth : geo.CropHeight;
         }
 
-        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
-            => throw new NotImplementedException();
+        public object[] ConvertBack(
+            object value,
+            Type[] targetTypes,
+            object parameter,
+            CultureInfo culture
+        ) => throw new NotImplementedException();
     }
 
     public class CropMaskConverter : IMultiValueConverter
     {
-        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        public object Convert(
+            object[] values,
+            Type targetType,
+            object parameter,
+            CultureInfo culture
+        )
         {
             if (!CropMath.TryParseArgs(values, out double containerSize, out int origW, out int origH, out double ox, out double oy, out PhotoSize size, out CutMode mode))
                 return Geometry.Empty;
@@ -339,8 +422,12 @@ namespace AutoCutPic.Core
             return new CombinedGeometry(GeometryCombineMode.Exclude, fullRect, cropRect);
         }
 
-        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
-            => throw new NotImplementedException();
+        public object[] ConvertBack(
+            object value,
+            Type[] targetTypes,
+            object parameter,
+            CultureInfo culture
+        ) => throw new NotImplementedException();
     }
 
     public class EnumToBooleanConverter : IValueConverter
@@ -350,7 +437,12 @@ namespace AutoCutPic.Core
             return value?.ToString() == parameter?.ToString();
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        public object ConvertBack(
+            object value,
+            Type targetType,
+            object parameter,
+            CultureInfo culture
+        )
         {
             if (value is bool b && b)
             {

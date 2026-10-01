@@ -33,7 +33,7 @@ public partial class MainWindow : Window
         KeyDown += MainWindow_KeyDown;
     }
 
-    private void PaperFrame_MouseDown(object sender, MouseButtonEventArgs e)
+    private void PhotoCanvas_MouseDown(object sender, MouseButtonEventArgs e)
     {
         if (e.LeftButton == MouseButtonState.Pressed && _viewModel.SelectedPhoto != null)
         {
@@ -45,17 +45,17 @@ public partial class MainWindow : Window
         }
     }
 
-    private void PaperFrame_MouseMove(object sender, MouseEventArgs e)
+    private void PhotoCanvas_MouseMove(object sender, MouseEventArgs e)
     {
         if (!_isDragging || _viewModel.SelectedPhoto == null)
             return;
 
         var host = (FrameworkElement)FindName("MainViewportHost");
-        if (host == null || host.ActualWidth <= 20 || host.ActualHeight <= 20)
+        if (host == null || host.ActualWidth <= 40 || host.ActualHeight <= 40)
             return;
 
         var photo = _viewModel.SelectedPhoto;
-        var geo = ViewportMath.Calculate(
+        var geo = PsWorkbenchMath.Calculate(
             host.ActualWidth,
             host.ActualHeight,
             photo.OriginalWidth > 0 ? photo.OriginalWidth : 1,
@@ -72,18 +72,18 @@ public partial class MainWindow : Window
 
         if (geo.ExcessW > 1)
         {
-            double newOx = _dragStartOffsetX - (deltaX / geo.ExcessW);
+            double newOx = _dragStartOffsetX + (deltaX / geo.ExcessW);
             photo.OffsetX = Math.Clamp(newOx, -0.5, 0.5);
         }
 
         if (geo.ExcessH > 1)
         {
-            double newOy = _dragStartOffsetY - (deltaY / geo.ExcessH);
+            double newOy = _dragStartOffsetY + (deltaY / geo.ExcessH);
             photo.OffsetY = Math.Clamp(newOy, -0.5, 0.5);
         }
     }
 
-    private void PaperFrame_MouseUp(object sender, MouseButtonEventArgs e)
+    private void PhotoCanvas_MouseUp(object sender, MouseButtonEventArgs e)
     {
         if (_isDragging)
         {
