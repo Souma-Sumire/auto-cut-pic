@@ -664,19 +664,21 @@ namespace AutoCutPic.ViewModels
             Photos.Clear();
             OnPropertyChanged(nameof(IsDropOverlayVisible));
 
+            // 先构建壳列表，不立刻添加到 Photos（避免 WPF 视觉树构建堵死 UI 队列）
             var photoList = allFiles.Select(f => new PhotoViewModel(f)).ToList();
-            foreach (var p in photoList)
-            {
-                Photos.Add(p);
-            }
-            SelectedPhoto = Photos.FirstOrDefault();
 
             int total = photoList.Count;
             int loaded = 0;
 
+            var progress = new Progress<(int current, double pct, string name)>(report =>
+            {
+                LoadingProgress = report.pct;
+                LoadingStatusText = $"正在载入第 {report.current}/{total} 张 ({report.pct:F0}%): {report.name}";
+            });
+
             await Task.Run(() =>
             {
-                var options = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
+                var options = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount - 1) };
                 Parallel.ForEach(photoList, options, photo =>
                 {
                     LoadThumbnail(photo);
@@ -684,25 +686,16 @@ namespace AutoCutPic.ViewModels
                     int current = Interlocked.Increment(ref loaded);
                     double pct = (double)current / total * 100.0;
                     string name = Path.GetFileName(photo.FilePath);
-
-                    var dispatcher = System.Windows.Application.Current?.Dispatcher;
-                    if (dispatcher != null)
-                    {
-                        dispatcher.InvokeAsync(() =>
-                        {
-                            LoadingProgress = pct;
-                            LoadingStatusText = $"正在载入第 {current}/{total} 张 ({pct:F0}%): {name}";
-                        }, System.Windows.Threading.DispatcherPriority.Normal);
-                    }
-                    else
-                    {
-                        LoadingProgress = pct;
-                        LoadingStatusText = $"正在载入第 {current}/{total} 张 ({pct:F0}%): {name}";
-                    }
+                    ((IProgress<(int, double, string)>)progress).Report((current, pct, name));
                 });
             });
 
-            // 保持 100% 完成态短暂呈现，给用户清晰的视觉闭环
+            // 后台全部处理完成后一次性填入 Photos，此时 UI 线程空闲，进度条能流畅呈现
+            foreach (var p in photoList)
+            {
+                Photos.Add(p);
+            }
+
             LoadingProgress = 100.0;
             LoadingStatusText = $"已完成全部 {total} 张照片载入";
             await Task.Delay(200);

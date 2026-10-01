@@ -103,124 +103,23 @@
         <!--  左侧主工作台（上半部单张大图工作台 + 下半部资源管理器平铺视图）  -->
         <Grid Grid.Column="0">
             <Grid.RowDefinitions>
-                <!-- Row 0: 顶部控制栏 -->
-                <RowDefinition Height="40" />
-                <!-- Row 1: 单张精调大图主工作台 -->
+                <!-- Row 0: 单张精调大图主工作台 (顶部通透无栏阻挡，视野最大化) -->
                 <RowDefinition Height="3*" MinHeight="220" />
-                <!-- Row 2: 上下可拖拽分割条 -->
+                <!-- Row 1: 上下可拖拽分割条 -->
                 <RowDefinition Height="5" />
-                <!-- Row 3: 资源管理器平铺视图 (多行垂直滚动) -->
-                <RowDefinition Height="2*" MinHeight="160" />
+                <!-- Row 2: 资源管理器平铺视图 (包含控制工具栏与多行平铺列表) -->
+                <RowDefinition Height="2*" MinHeight="180" />
             </Grid.RowDefinitions>
-
-            <!-- 顶部工作条 (同比例免修单选过滤、缩放调节与照片统计) -->
-            <Border
-                Grid.Row="0"
-                Background="#1D1D1D"
-                BorderBrush="#282828"
-                BorderThickness="0,0,1,1"
-                Padding="16,0">
-                <Grid>
-                    <!-- 左侧：同比例免修照片单选切换：全部显示 / 淡化免修 / 隐藏免修 -->
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="免修照片:" Foreground="#888888" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0" />
-                        <RadioButton
-                            GroupName="MatchedFilterGroup"
-                            IsChecked="{Binding ShowAllPhotos}"
-                            VerticalAlignment="Center"
-                            Foreground="#CCCCCC"
-                            FontSize="11"
-                            Margin="0,0,12,0"
-                            Content="全部显示" />
-                        <RadioButton
-                            GroupName="MatchedFilterGroup"
-                            IsChecked="{Binding DimMatchedPhotos}"
-                            VerticalAlignment="Center"
-                            Foreground="#CCCCCC"
-                            FontSize="11"
-                            Margin="0,0,12,0"
-                            Content="淡化免修 (QE跳过)" />
-                        <RadioButton
-                            GroupName="MatchedFilterGroup"
-                            IsChecked="{Binding HideMatchedPhotos}"
-                            VerticalAlignment="Center"
-                            Foreground="#CCCCCC"
-                            FontSize="11"
-                            Content="隐藏免修" />
-                    </StackPanel>
-
-                    <!-- 右侧：平铺缩放滑块 + 照片总量与免修状态统计 -->
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <TextBlock Text="平铺缩放:" Foreground="#888888" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0" />
-                        <Slider
-                            Width="75"
-                            Minimum="80"
-                            Maximum="300"
-                            Value="{Binding GalleryCardWidth}"
-                            VerticalAlignment="Center"
-                            Focusable="False"
-                            Margin="0,0,14,0" />
-
-                        <TextBlock Text="{Binding Photos.Count, StringFormat='共 {0} 张照片'}" Foreground="#666666" FontSize="11" />
-                        <TextBlock Text=" · " Foreground="#444444" FontSize="11" />
-                        <TextBlock Text="{Binding NeedAdjustCount, StringFormat='{}{0} 张需调整'}" Foreground="#E0E0E0" FontWeight="Medium" FontSize="11" />
-                        <TextBlock Text=" · " Foreground="#444444" FontSize="11" />
-                        <TextBlock Text="{Binding AspectMatchedCount, StringFormat='{}{0} 张同比例免修'}" Foreground="#888888" FontSize="11" />
-                    </StackPanel>
-
-                    <!-- 顶部全局流式导入进度条 (贴在工具栏底边) -->
-                    <ProgressBar
-                        Height="4"
-                        VerticalAlignment="Bottom"
-                        Background="#282828"
-                        Foreground="#0078D4"
-                        BorderThickness="0"
-                        Minimum="0"
-                        Maximum="100"
-                        Value="{Binding LoadingProgress}"
-                        Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}" />
-                </Grid>
-            </Border>
 
             <!--  中央大图主视口（Photoshop 裁切画布工作台）  -->
             <Border
                 x:Name="MainViewportHost"
-                Grid.Row="1"
+                Grid.Row="0"
                 Background="#181818"
                 BorderBrush="#2D2D2D"
                 BorderThickness="0,0,1,0"
                 ClipToBounds="True">
                 <Grid>
-                    <!-- 导入与加载照片悬浮进度状态条 (大图中央顶部悬浮) -->
-                    <Border
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Top"
-                        Margin="0,12,0,0"
-                        Background="#F01E1E1E"
-                        BorderBrush="#3D3D3D"
-                        BorderThickness="1"
-                        CornerRadius="4"
-                        Padding="14,6"
-                        Panel.ZIndex="100"
-                        Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="正在载入: " Foreground="#888888" FontSize="11" />
-                            <ProgressBar
-                                Width="80"
-                                Height="4"
-                                Background="#2B2B2B"
-                                Foreground="#0078D4"
-                                BorderThickness="0"
-                                Minimum="0"
-                                Maximum="100"
-                                Value="{Binding LoadingProgress}"
-                                VerticalAlignment="Center"
-                                Margin="4,0,8,0" />
-                            <TextBlock Text="{Binding LoadingProgress, StringFormat='{}{0:F0}%'}" Foreground="#0078D4" FontWeight="SemiBold" FontSize="11" Margin="0,0,6,0" />
-                            <TextBlock Text="·" Foreground="#444444" FontSize="11" Margin="0,0,6,0" />
-                            <TextBlock Text="{Binding LoadingStatusText}" Foreground="#D0D0D0" FontSize="11" MaxWidth="260" TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
-                    </Border>
 
                     <!-- 统一工作画板（纯白相纸底板、照片原图、遮罩与 PS 裁切框） -->
                     <Grid
@@ -704,9 +603,9 @@
                 </Grid>
             </Border>
 
-            <!-- Row 2: 上下可拖拽分割条 -->
+            <!-- Row 1: 上下可拖拽分割条 -->
             <GridSplitter
-                Grid.Row="2"
+                Grid.Row="1"
                 Height="5"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Center"
@@ -714,16 +613,95 @@
                 ShowsPreview="False"
                 Cursor="SizeNS" />
 
-            <!-- Row 3: 资源管理器平铺视图 (多行垂直上下滚动，无左右横滚) -->
+            <!-- Row 2: 资源管理器平铺视图 (控制工具栏 + 多行垂直上下滚动) -->
             <Border
                 x:Name="BatchGalleryHost"
-                Grid.Row="3"
+                Grid.Row="2"
                 Background="#141414"
                 BorderBrush="#2D2D2D"
                 BorderThickness="0,1,1,0">
                 <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- 平铺视图控制工具栏 -->
+                    <Border
+                        Grid.Row="0"
+                        Background="#1D1D1D"
+                        BorderBrush="#282828"
+                        BorderThickness="0,0,0,1"
+                        Padding="12,0">
+                        <Grid Height="34">
+                            <!-- 左侧：免修照片过滤单选组 -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="免修:" Foreground="#666666" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <RadioButton
+                                    GroupName="MatchedFilterGroup"
+                                    IsChecked="{Binding ShowAllPhotos}"
+                                    VerticalAlignment="Center"
+                                    Foreground="#CCCCCC"
+                                    FontSize="11"
+                                    Margin="0,0,12,0"
+                                    Content="全部显示" />
+                                <RadioButton
+                                    GroupName="MatchedFilterGroup"
+                                    IsChecked="{Binding DimMatchedPhotos}"
+                                    VerticalAlignment="Center"
+                                    Foreground="#CCCCCC"
+                                    FontSize="11"
+                                    Margin="0,0,12,0"
+                                    Content="淡化 (QE跳过)" />
+                                <RadioButton
+                                    GroupName="MatchedFilterGroup"
+                                    IsChecked="{Binding HideMatchedPhotos}"
+                                    VerticalAlignment="Center"
+                                    Foreground="#CCCCCC"
+                                    FontSize="11"
+                                    Content="隐藏" />
+                            </StackPanel>
+
+                            <!-- 右侧：缩放滑块 + 统计 + 进度条 -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <!-- 导入进度条（仅加载时可见） -->
+                                <StackPanel
+                                    Orientation="Horizontal"
+                                    Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
+                                    Margin="0,0,12,0">
+                                    <TextBlock Text="载入: " Foreground="#888888" FontSize="11" VerticalAlignment="Center" />
+                                    <ProgressBar
+                                        Width="80"
+                                        Height="4"
+                                        Background="#2B2B2B"
+                                        Foreground="#0078D4"
+                                        BorderThickness="0"
+                                        Minimum="0"
+                                        Maximum="100"
+                                        Value="{Binding LoadingProgress}"
+                                        VerticalAlignment="Center"
+                                        Margin="4,0,6,0" />
+                                    <TextBlock Text="{Binding LoadingProgress, StringFormat='{}{0:F0}%'}" Foreground="#0078D4" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                    <TextBlock Text="{Binding LoadingStatusText}" Foreground="#888888" FontSize="11" MaxWidth="180" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="缩放:" Foreground="#666666" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <Slider
+                                    Width="75"
+                                    Minimum="80"
+                                    Maximum="300"
+                                    Value="{Binding GalleryCardWidth}"
+                                    VerticalAlignment="Center"
+                                    Focusable="False"
+                                    Margin="0,0,14,0" />
+                                <TextBlock Text="{Binding Photos.Count, StringFormat='共 {0} 张'}" Foreground="#555555" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text=" · " Foreground="#3A3A3A" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding NeedAdjustCount, StringFormat='{}{0} 张需调整'}" Foreground="#B0B0B0" FontWeight="Medium" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
                     <ListBox
                         x:Name="BatchGalleryList"
+                        Grid.Row="1"
                         ItemsSource="{Binding Photos}"
                         SelectedItem="{Binding SelectedPhoto}"
                         SelectionMode="Extended"
@@ -1036,50 +1014,19 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
 
-                                            <!-- 第二行：真实像素物理分辨率、相纸方向与免修状态 -->
-                                            <Grid Grid.Row="1" Margin="0,1,0,0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock
-                                                    Grid.Column="0"
-                                                    FontSize="9"
-                                                    Foreground="#808080"
-                                                    VerticalAlignment="Center">
-                                                    <TextBlock.Text>
-                                                        <MultiBinding StringFormat="{}{0} × {1}">
-                                                            <Binding Path="OriginalWidth" />
-                                                            <Binding Path="OriginalHeight" />
-                                                        </MultiBinding>
-                                                    </TextBlock.Text>
-                                                </TextBlock>
-                                                <TextBlock
-                                                    Grid.Column="1"
-                                                    Text="{Binding Orientation, Converter={StaticResource OrientationToDisplayConverter}}"
-                                                    FontSize="9"
-                                                    Foreground="#888888"
-                                                    Margin="0,0,4,0"
-                                                    VerticalAlignment="Center" />
-                                                <TextBlock
-                                                    Grid.Column="2"
-                                                    Text="免修"
-                                                    FontSize="9"
-                                                    Foreground="#5FA3FF"
-                                                    VerticalAlignment="Center">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Visibility" Value="Collapsed" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsAspectMatched}" Value="True">
-                                                                    <Setter Property="Visibility" Value="Visible" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Grid>
+                                            <!-- 第二行：真实像素分辨率 -->
+                                            <TextBlock
+                                                Grid.Row="1"
+                                                FontSize="9"
+                                                Foreground="#606060"
+                                                Margin="0,1,0,0">
+                                                <TextBlock.Text>
+                                                    <MultiBinding StringFormat="{}{0} × {1}">
+                                                        <Binding Path="OriginalWidth" />
+                                                        <Binding Path="OriginalHeight" />
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
                                         </Grid>
                                     </Grid>
                                 </Border>
