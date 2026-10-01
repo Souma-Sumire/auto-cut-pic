@@ -673,9 +673,10 @@ namespace AutoCutPic.ViewModels
             var progress = new Progress<(int current, double pct, string name)>(report =>
             {
                 LoadingProgress = report.pct;
-                LoadingStatusText = $"正在载入第 {report.current}/{total} 张 ({report.pct:F0}%): {report.name}";
+                LoadingStatusText = $"正在载入 {report.current}/{total} ({report.pct:F0}%)";
             });
 
+            long lastReportTick = 0;
             await Task.Run(() =>
             {
                 var options = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount - 1) };
@@ -685,8 +686,19 @@ namespace AutoCutPic.ViewModels
 
                     int current = Interlocked.Increment(ref loaded);
                     double pct = (double)current / total * 100.0;
-                    string name = Path.GetFileName(photo.FilePath);
-                    ((IProgress<(int, double, string)>)progress).Report((current, pct, name));
+
+                    // 节流：最多每 50ms 上报一次，但最后一张必须上报
+                    bool isLast = current == total;
+                    long now = Environment.TickCount64;
+                    long last = Interlocked.Read(ref lastReportTick);
+                    if (isLast || now - last >= 50)
+                    {
+                        if (isLast || Interlocked.CompareExchange(ref lastReportTick, now, last) == last)
+                        {
+                            string name = Path.GetFileName(photo.FilePath);
+                            ((IProgress<(int, double, string)>)progress).Report((current, pct, name));
+                        }
+                    }
                 });
             });
 
