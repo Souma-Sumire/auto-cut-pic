@@ -84,7 +84,16 @@ namespace AutoCutPic.Core
                 var placement = CropGeometryCalculator.CalculateFitPlacement(
                     (int)original.Width,
                     (int)original.Height,
-                    targetPaper
+                    targetPaper,
+                    offsetX,
+                    offsetY,
+                    cropScale
+                );
+
+                var canvas = new MagickImage(
+                    MagickColors.White,
+                    (uint)targetPaper.Width,
+                    (uint)targetPaper.Height
                 );
 
                 result.Resize(
@@ -94,8 +103,9 @@ namespace AutoCutPic.Core
                     )
                 );
 
-                result.BackgroundColor = MagickColors.White;
-                result.Extent((uint)targetPaper.Width, (uint)targetPaper.Height, Gravity.Center);
+                canvas.Composite(result, placement.MarginLeft, placement.MarginTop, CompositeOperator.Over);
+                result.Dispose();
+                result = canvas;
             }
 
             result.Density = new Density(settings.TargetSize.Dpi, DensityUnit.PixelsPerInch);

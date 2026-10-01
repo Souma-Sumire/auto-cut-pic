@@ -176,25 +176,29 @@ namespace AutoCutPic.Core
 
             if (mode == CutMode.Fit)
             {
-                // Fit 留白模式：相纸在视口内居中自适应，照片在相纸内部居中，露出的相纸底色为纯白白边
+                // Fit 留白模式：相纸作为纯白底板居中呈现，照片根据偏移与缩放排版，未填满区域为自定义白边，不限制剪切移动
                 double paperScale = Math.Min(availW / targetW, availH / targetH);
                 paperW = Math.Max(10, targetW * paperScale);
                 paperH = Math.Max(10, targetH * paperScale);
-
-                double imgScale = Math.Min(paperW / origW, paperH / origH);
-                imgW = Math.Max(10, origW * imgScale);
-                imgH = Math.Max(10, origH * imgScale);
 
                 boardW = paperW;
                 boardH = paperH;
                 paperX = 0;
                 paperY = 0;
 
-                imgX = (paperW - imgW) / 2.0;
-                imgY = (paperH - imgH) / 2.0;
+                double scale = Math.Clamp(cropScale, 0.1, 1.0);
+                double baseImgScale = Math.Min(paperW / origW, paperH / origH);
+                imgW = Math.Max(10, origW * baseImgScale * scale);
+                imgH = Math.Max(10, origH * baseImgScale * scale);
 
-                excessW = 0;
-                excessH = 0;
+                double baseImgX = (paperW - imgW) / 2.0;
+                double baseImgY = (paperH - imgH) / 2.0;
+
+                excessW = Math.Max(paperW - imgW, paperW * 0.8);
+                excessH = Math.Max(paperH - imgH, paperH * 0.8);
+
+                imgX = baseImgX + (Math.Clamp(offsetX, -0.5, 0.5) * excessW);
+                imgY = baseImgY + (Math.Clamp(offsetY, -0.5, 0.5) * excessH);
             }
             else
             {

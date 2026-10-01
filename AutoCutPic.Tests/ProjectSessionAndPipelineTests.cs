@@ -128,5 +128,49 @@ namespace AutoCutPic.Tests
             Assert.Equal((uint)1800, readBack.Width);
             Assert.Equal((uint)1200, readBack.Height);
         }
+
+        [Fact]
+        public void FitPlacement_WithCustomOffsetAndScale_ShouldAdjustMargins()
+        {
+            var paper = new PaperDimensions(1000, 1000);
+
+            // 居中默认
+            var fitCenter = CropGeometryCalculator.CalculateFitPlacement(1600, 900, paper, 0, 0, 1.0);
+            Assert.Equal(0, fitCenter.MarginLeft);
+            Assert.Equal(218, fitCenter.MarginTop);
+
+            // 靠上留白 (offsetY = -0.5)
+            var fitTop = CropGeometryCalculator.CalculateFitPlacement(1600, 900, paper, 0, -0.5, 1.0);
+            Assert.True(fitTop.MarginTop < fitCenter.MarginTop);
+
+            // 靠下留白 (offsetY = 0.5)
+            var fitBottom = CropGeometryCalculator.CalculateFitPlacement(1600, 900, paper, 0, 0.5, 1.0);
+            Assert.True(fitBottom.MarginTop > fitCenter.MarginTop);
+
+            // 缩放留白 (cropScale = 0.8)
+            var fitScaled = CropGeometryCalculator.CalculateFitPlacement(1600, 900, paper, 0, 0, 0.8);
+            Assert.True(fitScaled.ScaledWidth < fitCenter.ScaledWidth);
+            Assert.True(fitScaled.MarginLeft > 0); // 缩小后左右也产生白边
+        }
+
+        [Fact]
+        public void ResetCrop_ShouldResetOffsetAndScaleToDefault()
+        {
+            var vm = new AutoCutPic.ViewModels.MainViewModel();
+            var photo = new AutoCutPic.ViewModels.PhotoViewModel("C:\\test.jpg")
+            {
+                OffsetX = 0.35,
+                OffsetY = -0.42,
+                CropScale = 0.75
+            };
+            vm.Photos.Add(photo);
+            vm.SelectedPhoto = photo;
+
+            vm.ResetCrop();
+
+            Assert.Equal(0.0, photo.OffsetX);
+            Assert.Equal(0.0, photo.OffsetY);
+            Assert.Equal(1.0, photo.CropScale);
+        }
     }
 }

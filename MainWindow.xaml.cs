@@ -81,9 +81,6 @@ public partial class MainWindow : Window
     {
         if (e.LeftButton == MouseButtonState.Pressed && _viewModel.SelectedPhoto != null)
         {
-            if (_viewModel.SelectedMode == CutMode.Fit)
-                return;
-
             var host = (FrameworkElement)FindName("MainViewportHost");
             if (host == null || host.ActualWidth <= 40 || host.ActualHeight <= 40)
                 return;
@@ -335,9 +332,6 @@ public partial class MainWindow : Window
     {
         if (e.LeftButton == MouseButtonState.Pressed && _viewModel.SelectedPhoto != null)
         {
-            if (_viewModel.SelectedMode == CutMode.Fit)
-                return;
-
             _isDragging = true;
             _activeHandleTag = "All";
             _dragStartPoint = e.GetPosition(this);
@@ -540,6 +534,11 @@ public partial class MainWindow : Window
 
             case Key.X:
                 _viewModel.ToggleOrientation(selectedItems);
+                e.Handled = true;
+                break;
+
+            case Key.R:
+                _viewModel.ResetCrop(selectedItems);
                 e.Handled = true;
                 break;
         }

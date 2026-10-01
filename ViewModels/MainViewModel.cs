@@ -804,11 +804,34 @@ namespace AutoCutPic.ViewModels
         public ICommand ToggleModeCommand { get; }
         public ICommand SetModeCommand { get; }
         public ICommand ToggleOrientationCommand { get; }
+        public ICommand ResetCropCommand { get; }
         public ICommand OpenFileInExplorerCommand { get; }
         public ICommand CopyFilePathCommand { get; }
 
         public void ToggleViewMode() =>
             CurrentViewMode = CurrentViewMode == ViewMode.Single ? ViewMode.Batch : ViewMode.Single;
+
+        public void ResetCrop(System.Collections.IList? targetPhotos = null)
+        {
+            var list = targetPhotos?.OfType<PhotoViewModel>().ToList();
+            if (list == null || list.Count == 0)
+            {
+                if (SelectedPhoto != null)
+                    list = new List<PhotoViewModel> { SelectedPhoto };
+            }
+
+            if (list == null || list.Count == 0)
+                return;
+
+            foreach (var photo in list)
+            {
+                photo.OffsetX = 0.0;
+                photo.OffsetY = 0.0;
+                photo.CropScale = 1.0;
+            }
+
+            StatusText = $"已恢复 {list.Count} 张照片的默认剪切构图";
+        }
 
         public void ToggleOrientation(System.Collections.IList? targetPhotos = null)
         {
@@ -843,6 +866,14 @@ namespace AutoCutPic.ViewModels
         {
             _imageProcessor = imageProcessor ?? ImageProcessor.Instance;
             _selectedSize = Sizes.FirstOrDefault(s => s.Name == "6寸") ?? PhotoSize.Inch6;
+
+            ResetCropCommand = new RelayCommand(p =>
+            {
+                if (p is System.Collections.IList list)
+                    ResetCrop(list);
+                else
+                    ResetCrop();
+            });
 
             ToggleOrientationCommand = new RelayCommand(p =>
             {

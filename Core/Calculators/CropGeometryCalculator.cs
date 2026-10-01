@@ -211,12 +211,15 @@ namespace AutoCutPic.Core.Calculators
         }
 
         /// <summary>
-        /// 计算留白完整（Fit）模式下，照片在目标相纸上的等比缩放与居中排版位置
+        /// 计算留白完整（Fit）模式下，照片在目标相纸上的等比缩放与自定义白边排版位置
         /// </summary>
         public static FitPlacement CalculateFitPlacement(
             int photoWidth,
             int photoHeight,
-            PaperDimensions targetPaper)
+            PaperDimensions targetPaper,
+            double offsetX = 0,
+            double offsetY = 0,
+            double cropScale = 1.0)
         {
             if (photoWidth <= 0 || photoHeight <= 0 || targetPaper.Width <= 0 || targetPaper.Height <= 0)
             {
@@ -232,13 +235,20 @@ namespace AutoCutPic.Core.Calculators
 
             double ratioW = (double)targetPaper.Width / photoWidth;
             double ratioH = (double)targetPaper.Height / photoHeight;
-            double scale = Math.Min(ratioW, ratioH);
+            double baseScale = Math.Min(ratioW, ratioH);
+            double effectiveScale = baseScale * Math.Clamp(cropScale, 0.1, 1.0);
 
-            int scaledW = Math.Max(1, (int)Math.Round(photoWidth * scale, MidpointRounding.AwayFromZero));
-            int scaledH = Math.Max(1, (int)Math.Round(photoHeight * scale, MidpointRounding.AwayFromZero));
+            int scaledW = Math.Max(1, (int)Math.Round(photoWidth * effectiveScale, MidpointRounding.AwayFromZero));
+            int scaledH = Math.Max(1, (int)Math.Round(photoHeight * effectiveScale, MidpointRounding.AwayFromZero));
 
-            int marginLeft = Math.Max(0, (targetPaper.Width - scaledW) / 2);
-            int marginTop = Math.Max(0, (targetPaper.Height - scaledH) / 2);
+            double baseLeft = (targetPaper.Width - scaledW) / 2.0;
+            double baseTop = (targetPaper.Height - scaledH) / 2.0;
+
+            double shiftRangeX = Math.Max(targetPaper.Width - scaledW, targetPaper.Width * 0.8);
+            double shiftRangeY = Math.Max(targetPaper.Height - scaledH, targetPaper.Height * 0.8);
+
+            int marginLeft = (int)Math.Round(baseLeft + (Math.Clamp(offsetX, -0.5, 0.5) * shiftRangeX));
+            int marginTop = (int)Math.Round(baseTop + (Math.Clamp(offsetY, -0.5, 0.5) * shiftRangeY));
 
             return new FitPlacement(
                 targetPaper.Width,
@@ -282,8 +292,12 @@ namespace AutoCutPic.Core.Calculators
                 double imgScale = Math.Min(paperW / photoWidth, paperH / photoHeight);
                 double imgW = Math.Max(5, Math.Round(photoWidth * imgScale));
                 double imgH = Math.Max(5, Math.Round(photoHeight * imgScale));
-                double left = (paperW - imgW) / 2.0;
-                double top = (paperH - imgH) / 2.0;
+                double baseLeft = (paperW - imgW) / 2.0;
+                double baseTop = (paperH - imgH) / 2.0;
+                double shiftRangeX = Math.Max(paperW - imgW, paperW * 0.8);
+                double shiftRangeY = Math.Max(paperH - imgH, paperH * 0.8);
+                double left = baseLeft + (Math.Clamp(offsetX, -0.5, 0.5) * shiftRangeX);
+                double top = baseTop + (Math.Clamp(offsetY, -0.5, 0.5) * shiftRangeY);
 
                 return new BatchCardLayout(paperW, paperH, imgW, imgH, left, top, true);
             }
@@ -343,16 +357,23 @@ namespace AutoCutPic.Core.Calculators
 
             if (mode == CutMode.Fit)
             {
-                // Fit 留白模式：相纸在视口内自适应，照片在相纸内部居中留白
+                // Fit 留白模式：相纸在视口内自适应，照片在相纸内部根据偏移与缩放排版，未覆盖区域为自定义留白
                 double paperScale = Math.Min(boxWidth / targetPaper.Width, boxHeight / targetPaper.Height);
                 double paperW = Math.Max(10, Math.Round(targetPaper.Width * paperScale));
                 double paperH = Math.Max(10, Math.Round(targetPaper.Height * paperScale));
 
-                double imgScale = Math.Min(paperW / photoWidth, paperH / photoHeight);
+                double scale = Math.Clamp(cropScale, 0.1, 1.0);
+                double imgScale = Math.Min(paperW / photoWidth, paperH / photoHeight) * scale;
                 double imgW = Math.Max(5, Math.Round(photoWidth * imgScale));
                 double imgH = Math.Max(5, Math.Round(photoHeight * imgScale));
-                double imgLeft = Math.Round((paperW - imgW) / 2.0);
-                double imgTop = Math.Round((paperH - imgH) / 2.0);
+
+                double baseLeft = (paperW - imgW) / 2.0;
+                double baseTop = (paperH - imgH) / 2.0;
+                double shiftRangeX = Math.Max(paperW - imgW, paperW * 0.8);
+                double shiftRangeY = Math.Max(paperH - imgH, paperH * 0.8);
+
+                double imgLeft = Math.Round(baseLeft + (Math.Clamp(offsetX, -0.5, 0.5) * shiftRangeX));
+                double imgTop = Math.Round(baseTop + (Math.Clamp(offsetY, -0.5, 0.5) * shiftRangeY));
 
                 return new BatchCardCropLayout(
                     paperW, paperH,
