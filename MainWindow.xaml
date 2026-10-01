@@ -100,21 +100,6 @@
             <ColumnDefinition Width="290" />
         </Grid.ColumnDefinitions>
 
-        <!-- 全局流式导入进度指示器 -->
-        <ProgressBar
-            Grid.Column="0"
-            Grid.ColumnSpan="2"
-            Height="3"
-            VerticalAlignment="Top"
-            Background="Transparent"
-            Foreground="#0078D4"
-            BorderThickness="0"
-            Minimum="0"
-            Maximum="100"
-            Value="{Binding LoadingProgress}"
-            Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
-            Panel.ZIndex="999" />
-
         <!--  左侧主工作台（上半部单张大图工作台 + 下半部资源管理器平铺视图）  -->
         <Grid Grid.Column="0">
             <Grid.RowDefinitions>
@@ -125,10 +110,10 @@
                 <!-- Row 2: 上下可拖拽分割条 -->
                 <RowDefinition Height="5" />
                 <!-- Row 3: 资源管理器平铺视图 (多行垂直滚动) -->
-                <RowDefinition Height="2*" MinHeight="140" />
+                <RowDefinition Height="2*" MinHeight="160" />
             </Grid.RowDefinitions>
 
-            <!-- 顶部工作条 (同比例免修单选过滤与照片统计) -->
+            <!-- 顶部工作条 (同比例免修单选过滤、缩放调节与照片统计) -->
             <Border
                 Grid.Row="0"
                 Background="#1D1D1D"
@@ -164,14 +149,36 @@
                             Content="隐藏免修" />
                     </StackPanel>
 
-                    <!-- 右侧：照片总量与免修状态统计 -->
+                    <!-- 右侧：平铺缩放滑块 + 照片总量与免修状态统计 -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <TextBlock Text="平铺缩放:" Foreground="#888888" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <Slider
+                            Width="75"
+                            Minimum="80"
+                            Maximum="300"
+                            Value="{Binding GalleryCardWidth}"
+                            VerticalAlignment="Center"
+                            Focusable="False"
+                            Margin="0,0,14,0" />
+
                         <TextBlock Text="{Binding Photos.Count, StringFormat='共 {0} 张照片'}" Foreground="#666666" FontSize="11" />
                         <TextBlock Text=" · " Foreground="#444444" FontSize="11" />
                         <TextBlock Text="{Binding NeedAdjustCount, StringFormat='{}{0} 张需调整'}" Foreground="#E0E0E0" FontWeight="Medium" FontSize="11" />
                         <TextBlock Text=" · " Foreground="#444444" FontSize="11" />
                         <TextBlock Text="{Binding AspectMatchedCount, StringFormat='{}{0} 张同比例免修'}" Foreground="#888888" FontSize="11" />
                     </StackPanel>
+
+                    <!-- 顶部全局流式导入进度条 (贴在工具栏底边) -->
+                    <ProgressBar
+                        Height="2.5"
+                        VerticalAlignment="Bottom"
+                        Background="#282828"
+                        Foreground="#0078D4"
+                        BorderThickness="0"
+                        Minimum="0"
+                        Maximum="100"
+                        Value="{Binding LoadingProgress}"
+                        Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}" />
                 </Grid>
             </Border>
 
@@ -184,6 +191,26 @@
                 BorderThickness="0,0,1,0"
                 ClipToBounds="True">
                 <Grid>
+                    <!-- 导入与加载照片悬浮进度状态条 (大图中央顶部悬浮) -->
+                    <Border
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top"
+                        Margin="0,12,0,0"
+                        Background="#F01E1E1E"
+                        BorderBrush="#3D3D3D"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="14,6"
+                        Panel.ZIndex="100"
+                        Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="正在载入照片: " Foreground="#888888" FontSize="11" />
+                            <TextBlock Text="{Binding LoadingProgress, StringFormat='{}{0:F0}%'}" Foreground="#0078D4" FontWeight="SemiBold" FontSize="11" Margin="4,0" />
+                            <TextBlock Text=" · " Foreground="#444444" FontSize="11" />
+                            <TextBlock Text="{Binding LoadingStatusText}" Foreground="#D0D0D0" FontSize="11" Margin="4,0,0,0" />
+                        </StackPanel>
+                    </Border>
+
                     <!-- 统一工作画板（纯白相纸底板、照片原图、遮罩与 PS 裁切框） -->
                     <Grid
                         x:Name="PhotoCanvas"
@@ -696,7 +723,8 @@
                         KeyboardNavigation.DirectionalNavigation="None"
                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                         ScrollViewer.VerticalScrollBarVisibility="Auto"
-                        PreviewMouseDown="BatchGalleryList_PreviewMouseDown">
+                        PreviewMouseDown="BatchGalleryList_PreviewMouseDown"
+                        PreviewMouseWheel="BatchGalleryList_PreviewMouseWheel">
                         <ListBox.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel Orientation="Horizontal" />
@@ -719,10 +747,10 @@
                         </ListBox.ItemContainerStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <!-- 资源管理器风格平铺照片卡片 -->
+                                <!-- 资源管理器风格平铺照片卡片 (支持动态无级缩放) -->
                                 <Border
-                                    Width="180"
-                                    Height="172"
+                                    Width="{Binding DataContext.GalleryCardWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    Height="{Binding DataContext.GalleryCardHeight, RelativeSource={RelativeSource AncestorType=Window}}"
                                     Background="#1E1E1E"
                                     BorderThickness="2"
                                     BorderBrush="#2F2F2F"
@@ -754,6 +782,15 @@
                                             <MenuItem
                                                 Header="切换相纸方向 (X)"
                                                 Command="{Binding DataContext.ToggleOrientationCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                            <Separator Background="#383838" Margin="4,2" />
+                                            <MenuItem
+                                                Header="在资源管理器中显示"
+                                                Command="{Binding DataContext.OpenFileInExplorerCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}" />
+                                            <MenuItem
+                                                Header="复制文件完整路径"
+                                                Command="{Binding DataContext.CopyFilePathCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}" />
                                         </ContextMenu>
                                     </Border.ContextMenu>
                                     <Border.Style>
@@ -770,8 +807,8 @@
                                     </Border.Style>
                                     <Grid>
                                         <Grid.RowDefinitions>
-                                            <RowDefinition Height="120" />
-                                            <RowDefinition Height="48" />
+                                            <RowDefinition Height="{Binding DataContext.GalleryImageContainerHeight, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                            <RowDefinition Height="38" />
                                         </Grid.RowDefinitions>
 
                                         <!-- 照片视口展示区 (深暗色背景) -->
@@ -790,6 +827,8 @@
                                                         <Binding Path="OffsetX" />
                                                         <Binding Path="OffsetY" />
                                                         <Binding Path="Orientation" />
+                                                        <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                     </MultiBinding>
                                                 </Grid.Width>
                                                 <Grid.Height>
@@ -801,6 +840,8 @@
                                                         <Binding Path="OffsetX" />
                                                         <Binding Path="OffsetY" />
                                                         <Binding Path="Orientation" />
+                                                        <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                     </MultiBinding>
                                                 </Grid.Height>
 
@@ -818,6 +859,8 @@
                                                             <Binding Path="OffsetX" />
                                                             <Binding Path="OffsetY" />
                                                             <Binding Path="Orientation" />
+                                                            <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                         </MultiBinding>
                                                     </Border.Visibility>
                                                     <Border.Width>
@@ -829,6 +872,8 @@
                                                             <Binding Path="OffsetX" />
                                                             <Binding Path="OffsetY" />
                                                             <Binding Path="Orientation" />
+                                                            <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                         </MultiBinding>
                                                     </Border.Width>
                                                     <Border.Height>
@@ -840,6 +885,8 @@
                                                             <Binding Path="OffsetX" />
                                                             <Binding Path="OffsetY" />
                                                             <Binding Path="Orientation" />
+                                                            <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                         </MultiBinding>
                                                     </Border.Height>
                                                     <Border.Margin>
@@ -851,6 +898,8 @@
                                                             <Binding Path="OffsetX" />
                                                             <Binding Path="OffsetY" />
                                                             <Binding Path="Orientation" />
+                                                            <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                         </MultiBinding>
                                                     </Border.Margin>
                                                 </Border>
@@ -871,6 +920,8 @@
                                                             <Binding Path="OffsetX" />
                                                             <Binding Path="OffsetY" />
                                                             <Binding Path="Orientation" />
+                                                            <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                         </MultiBinding>
                                                     </Image.Width>
                                                     <Image.Height>
@@ -882,6 +933,8 @@
                                                             <Binding Path="OffsetX" />
                                                             <Binding Path="OffsetY" />
                                                             <Binding Path="Orientation" />
+                                                            <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                         </MultiBinding>
                                                     </Image.Height>
                                                     <Image.Margin>
@@ -893,6 +946,8 @@
                                                             <Binding Path="OffsetX" />
                                                             <Binding Path="OffsetY" />
                                                             <Binding Path="Orientation" />
+                                                            <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                         </MultiBinding>
                                                     </Image.Margin>
                                                 </Image>
@@ -910,6 +965,8 @@
                                                             <Binding Path="OffsetX" />
                                                             <Binding Path="OffsetY" />
                                                             <Binding Path="Orientation" />
+                                                            <Binding Path="DataContext.GalleryCardBoxWidth" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="DataContext.GalleryCardBoxHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                         </MultiBinding>
                                                     </Path.Data>
                                                 </Path>
@@ -941,7 +998,7 @@
                                         </Border>
 
                                         <!-- 卡片底部元数据 (文件名与尺寸完整展示) -->
-                                        <Grid Grid.Row="1" Margin="8,4,8,4" VerticalAlignment="Center">
+                                        <Grid Grid.Row="1" Margin="6,2,6,2" VerticalAlignment="Center">
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
@@ -968,7 +1025,7 @@
                                             </TextBlock>
 
                                             <!-- 第二行：真实像素物理分辨率、相纸方向与免修状态 -->
-                                            <Grid Grid.Row="1" Margin="0,3,0,0">
+                                            <Grid Grid.Row="1" Margin="0,1,0,0">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
@@ -976,11 +1033,11 @@
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock
                                                     Grid.Column="0"
-                                                    FontSize="10"
+                                                    FontSize="9"
                                                     Foreground="#808080"
                                                     VerticalAlignment="Center">
                                                     <TextBlock.Text>
-                                                        <MultiBinding StringFormat="{}{0} × {1} px">
+                                                        <MultiBinding StringFormat="{}{0} × {1}">
                                                             <Binding Path="OriginalWidth" />
                                                             <Binding Path="OriginalHeight" />
                                                         </MultiBinding>
@@ -991,7 +1048,7 @@
                                                     Text="{Binding Orientation, Converter={StaticResource OrientationToDisplayConverter}}"
                                                     FontSize="9"
                                                     Foreground="#888888"
-                                                    Margin="0,0,6,0"
+                                                    Margin="0,0,4,0"
                                                     VerticalAlignment="Center" />
                                                 <TextBlock
                                                     Grid.Column="2"
@@ -1018,17 +1075,28 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
 
-                    <!-- 鼠标中键自动平滑滚动指示器 (类似 Windows 资源管理器) -->
+                    <!-- 鼠标中键自动平滑滚动指示器 (严格居中对称，完全对齐) -->
                     <Canvas x:Name="AutoScrollCanvas" IsHitTestVisible="False">
                         <Grid
                             x:Name="AutoScrollAnchor"
                             Width="32"
                             Height="32"
-                            Visibility="Collapsed">
-                            <Ellipse Fill="#E6222222" Stroke="#88FFFFFF" StrokeThickness="1.5" />
+                            Visibility="Collapsed"
+                            IsHitTestVisible="False">
+                            <!-- 外层深色半透明圆环 -->
+                            <Ellipse Width="32" Height="32" Fill="#E6202020" Stroke="#99FFFFFF" StrokeThickness="1.5" />
+                            <!-- 中心圆点 (严格位于 16, 16) -->
                             <Ellipse Width="6" Height="6" Fill="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            <Path Data="M 12,9 L 16,5 L 20,9" Stroke="#FFFFFF" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,3,0,0" />
-                            <Path Data="M 12,23 L 16,27 L 20,23" Stroke="#FFFFFF" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,3" />
+                            <!-- 上下滚动精准居中对称箭头 (X轴在 16 对称，左右跨度各 5px: 11 与 21) -->
+                            <Path
+                                Data="M 11,10 L 16,5 L 21,10 M 11,22 L 16,27 L 21,22"
+                                Stroke="#FFFFFF"
+                                StrokeThickness="1.5"
+                                StrokeStartLineCap="Round"
+                                StrokeEndLineCap="Round"
+                                StrokeLineJoin="Round"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Top" />
                         </Grid>
                     </Canvas>
                 </Grid>
@@ -1336,7 +1404,7 @@
             </DockPanel>
         </Border>
 
-        <!--  全屏导入引导层 (当未导入照片时占满整个视口)  -->
+        <!--  全屏导入引导层 (当未导入照片或正在首次载入时呈现)  -->
         <Grid
             Grid.Column="0"
             Grid.ColumnSpan="2"
@@ -1345,7 +1413,7 @@
                 <Style TargetType="Grid">
                     <Setter Property="Visibility" Value="Collapsed" />
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding Photos.Count}" Value="0">
+                        <DataTrigger Binding="{Binding IsDropOverlayVisible}" Value="True">
                             <Setter Property="Visibility" Value="Visible" />
                         </DataTrigger>
                     </Style.Triggers>

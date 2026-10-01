@@ -186,6 +186,74 @@ namespace AutoCutPic.Tests
             Assert.True(vm.ShowAllPhotos);
             Assert.Equal(MainViewModel.PhotoFilterMode.Show, vm.MatchedFilterMode);
         }
+
+        [Fact]
+        public void GalleryCardWidth_ShouldClampBetweenMinAndMaxAndSyncHeights()
+        {
+            var vm = new MainViewModel();
+
+            // 默认 140
+            Assert.Equal(140.0, vm.GalleryCardWidth);
+            Assert.Equal(180.0, vm.GalleryCardHeight);
+            Assert.Equal(96.0, vm.GalleryImageContainerHeight);
+
+            // 小于最小值 80 钳制为 80
+            vm.GalleryCardWidth = 50.0;
+            Assert.Equal(80.0, vm.GalleryCardWidth);
+            Assert.Equal(80.0 + 40.0, vm.GalleryCardHeight);
+            Assert.Equal(40.0, vm.GalleryImageContainerHeight);
+
+            // 大于最大值 300 钳制为 300
+            vm.GalleryCardWidth = 500.0;
+            Assert.Equal(300.0, vm.GalleryCardWidth);
+            Assert.Equal(300.0 + 40.0, vm.GalleryCardHeight);
+            Assert.Equal(300.0 - 44.0, vm.GalleryImageContainerHeight);
+
+            // 正常赋值
+            vm.GalleryCardWidth = 200.0;
+            Assert.Equal(200.0, vm.GalleryCardWidth);
+            Assert.Equal(240.0, vm.GalleryCardHeight);
+            Assert.Equal(156.0, vm.GalleryImageContainerHeight);
+        }
+
+        [Fact]
+        public void IsDropOverlayVisible_ShouldBeTrueInitiallyAndFalseAfterLoadComplete()
+        {
+            var vm = new MainViewModel();
+
+            // 初始无照片且未开始加载
+            Assert.Empty(vm.Photos);
+            Assert.False(vm.IsInitialLoading);
+            Assert.True(vm.IsDropOverlayVisible);
+
+            // 模拟开始初始加载且有照片逐步加入
+            vm.IsInitialLoading = true;
+            vm.Photos.Add(new PhotoViewModel("dummy.jpg"));
+            // 此时虽有照片，但仍处于初始加载阶段，遮罩与全局进度条必须保持可见
+            Assert.True(vm.IsDropOverlayVisible);
+
+            // 加载彻底完成
+            vm.IsInitialLoading = false;
+            // 此时有照片且初始加载完成，遮罩隐藏，大图工作台与平铺列表展露
+            Assert.False(vm.IsDropOverlayVisible);
+
+            // 当用户清空列表时，遮罩重新展现
+            vm.Photos.Clear();
+            Assert.True(vm.IsDropOverlayVisible);
+        }
+
+        [Fact]
+        public void GalleryCommands_CanExecute_ShouldValidatePhotoAvailability()
+        {
+            var vm = new MainViewModel();
+
+            Assert.False(vm.OpenFileInExplorerCommand.CanExecute(null));
+            Assert.False(vm.CopyFilePathCommand.CanExecute(null));
+
+            var p = new PhotoViewModel("dummy.jpg");
+            Assert.True(vm.OpenFileInExplorerCommand.CanExecute(p));
+            Assert.True(vm.CopyFilePathCommand.CanExecute(p));
+        }
     }
 }
 

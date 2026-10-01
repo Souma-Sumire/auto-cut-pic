@@ -695,6 +695,10 @@ namespace AutoCutPic.Core
             double offsetY = values[5] is double oy ? oy : 0.0;
 
             TargetOrientation? orientation = null;
+            double boxW = 128.0;
+            double boxH = 88.0;
+            var doubleParams = new List<double>();
+
             if (values.Length > 6)
             {
                 for (int i = 6; i < values.Length; i++)
@@ -702,18 +706,23 @@ namespace AutoCutPic.Core
                     if (values[i] is TargetOrientation to)
                     {
                         orientation = to;
-                        break;
+                    }
+                    else if (values[i] is double d && d > 10)
+                    {
+                        doubleParams.Add(d);
                     }
                 }
             }
 
-            double boxW = 168.0;
-            double boxH = 112.0;
-
-            if (values.Length > 7 && values[6] is double bw && bw > 10 && values[7] is double bh && bh > 10)
+            if (doubleParams.Count >= 2)
             {
-                boxW = bw;
-                boxH = bh;
+                boxW = doubleParams[0];
+                boxH = doubleParams[1];
+            }
+            else if (doubleParams.Count == 1)
+            {
+                boxW = doubleParams[0];
+                boxH = doubleParams[0] * 0.68;
             }
 
             if (photoW <= 0 || photoH <= 0 || size == null)

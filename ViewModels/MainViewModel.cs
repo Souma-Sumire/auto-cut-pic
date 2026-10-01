@@ -388,6 +388,30 @@ namespace AutoCutPic.ViewModels
             }
         }
 
+        private double _galleryCardWidth = 140.0;
+        public double GalleryCardWidth
+        {
+            get => _galleryCardWidth;
+            set
+            {
+                double clamped = Math.Clamp(Math.Round(value), 80.0, 300.0);
+                if (Math.Abs(_galleryCardWidth - clamped) > 0.1)
+                {
+                    _galleryCardWidth = clamped;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(GalleryCardHeight));
+                    OnPropertyChanged(nameof(GalleryImageContainerHeight));
+                    OnPropertyChanged(nameof(GalleryCardBoxWidth));
+                    OnPropertyChanged(nameof(GalleryCardBoxHeight));
+                }
+            }
+        }
+
+        public double GalleryCardHeight => _galleryCardWidth + 40.0;
+        public double GalleryImageContainerHeight => Math.Max(40.0, _galleryCardWidth - 44.0);
+        public double GalleryCardBoxWidth => Math.Max(30.0, _galleryCardWidth - 12.0);
+        public double GalleryCardBoxHeight => Math.Max(30.0, GalleryImageContainerHeight - 8.0);
+
         private ViewMode _currentViewMode = ViewMode.Single;
 
         public ViewMode CurrentViewMode
@@ -484,6 +508,8 @@ namespace AutoCutPic.ViewModels
         public ICommand ToggleModeCommand { get; }
         public ICommand SetModeCommand { get; }
         public ICommand ToggleOrientationCommand { get; }
+        public ICommand OpenFileInExplorerCommand { get; }
+        public ICommand CopyFilePathCommand { get; }
 
         public void ToggleViewMode() =>
             CurrentViewMode = CurrentViewMode == ViewMode.Single ? ViewMode.Batch : ViewMode.Single;
@@ -530,6 +556,32 @@ namespace AutoCutPic.ViewModels
                     ToggleOrientation();
             });
 
+            OpenFileInExplorerCommand = new RelayCommand(p =>
+            {
+                string? path = (p as PhotoViewModel)?.FilePath ?? SelectedPhoto?.FilePath;
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                {
+                    try
+                    {
+                        System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\"");
+                    }
+                    catch { }
+                }
+            }, p => !string.IsNullOrEmpty((p as PhotoViewModel)?.FilePath ?? SelectedPhoto?.FilePath));
+
+            CopyFilePathCommand = new RelayCommand(p =>
+            {
+                string? path = (p as PhotoViewModel)?.FilePath ?? SelectedPhoto?.FilePath;
+                if (!string.IsNullOrEmpty(path))
+                {
+                    try
+                    {
+                        System.Windows.Clipboard.SetText(path);
+                    }
+                    catch { }
+                }
+            }, p => !string.IsNullOrEmpty((p as PhotoViewModel)?.FilePath ?? SelectedPhoto?.FilePath));
+
             ToggleModeCommand = new RelayCommand(_ =>
             {
                 if (SelectedPhoto != null)
@@ -573,10 +625,32 @@ namespace AutoCutPic.ViewModels
             );
         }
 
+        private bool _isInitialLoading;
+        public bool IsInitialLoading
+        {
+            get => _isInitialLoading;
+            set
+            {
+                if (_isInitialLoading != value)
+                {
+                    _isInitialLoading = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsDropOverlayVisible));
+                }
+            }
+        }
+
+        public bool IsDropOverlayVisible => Photos.Count == 0 || IsInitialLoading;
+
         public async Task LoadFiles(string[] allFiles)
         {
             if (allFiles == null || allFiles.Length == 0) return;
 
+            bool isFirst = Photos.Count == 0;
+            if (isFirst)
+            {
+                IsInitialLoading = true;
+            }
             IsLoading = true;
             LoadingProgress = 0;
             LoadingStatusText = $"正在导入照片 (0/{allFiles.Length})...";
@@ -621,6 +695,8 @@ namespace AutoCutPic.ViewModels
             });
 
             IsLoading = false;
+            IsInitialLoading = false;
+            OnPropertyChanged(nameof(IsDropOverlayVisible));
             UpdateAspectMatchForAll();
             StatusText = $"已导入 {Photos.Count} 张照片";
             if (SelectedPhoto == null && Photos.Any())

@@ -181,6 +181,26 @@ public partial class MainWindow : Window
         bool isCtrl = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
         bool isShift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
 
+        // Ctrl + A: 全选照片 (类似 Windows 资源管理器)
+        if (isCtrl && key == Key.A)
+        {
+            var list = (ListBox?)FindName("BatchGalleryList");
+            if (list != null)
+            {
+                list.SelectAll();
+                e.Handled = true;
+                return;
+            }
+        }
+
+        // Ctrl + 0: 恢复默认缩放尺寸
+        if (isCtrl && (key == Key.D0 || key == Key.NumPad0))
+        {
+            _viewModel.GalleryCardWidth = 140.0;
+            e.Handled = true;
+            return;
+        }
+
         // G: 切换批量画廊 / 单张精调视图
         if (key == Key.G)
         {
@@ -427,7 +447,18 @@ public partial class MainWindow : Window
         }
     }
 
-    #region 鼠标中键自动平滑滚动 (Auto-Scroll)
+    #region 鼠标中键自动平滑滚动 (Auto-Scroll) 与 Ctrl+滚轮无级缩放
+
+    private void BatchGalleryList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        bool isCtrl = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
+        if (isCtrl)
+        {
+            double step = e.Delta > 0 ? 12.0 : -12.0;
+            _viewModel.GalleryCardWidth = Math.Clamp(_viewModel.GalleryCardWidth + step, 80.0, 300.0);
+            e.Handled = true;
+        }
+    }
 
     private void BatchGalleryList_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
