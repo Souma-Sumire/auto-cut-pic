@@ -1,13 +1,10 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Media;
 using AutoCutPic.Core;
 using AutoCutPic.ViewModels;
 
@@ -20,6 +17,11 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _viewModel;
 
+    private bool _isDragging;
+    private Point _dragStartPoint;
+    private double _dragStartOffsetX;
+    private double _dragStartOffsetY;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -31,22 +33,98 @@ public partial class MainWindow : Window
         KeyDown += MainWindow_KeyDown;
     }
 
+    private void PaperFrame_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.LeftButton == MouseButtonState.Pressed && _viewModel.SelectedPhoto != null)
+        {
+            _isDragging = true;
+            _dragStartPoint = e.GetPosition(this);
+            _dragStartOffsetX = _viewModel.SelectedPhoto.OffsetX;
+            _dragStartOffsetY = _viewModel.SelectedPhoto.OffsetY;
+            ((UIElement)sender).CaptureMouse();
+        }
+    }
+
+    private void PaperFrame_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isDragging || _viewModel.SelectedPhoto == null)
+            return;
+
+        var host = (FrameworkElement)FindName("MainViewportHost");
+        if (host == null || host.ActualWidth <= 20 || host.ActualHeight <= 20)
+            return;
+
+        var photo = _viewModel.SelectedPhoto;
+        var geo = ViewportMath.Calculate(
+            host.ActualWidth,
+            host.ActualHeight,
+            photo.OriginalWidth > 0 ? photo.OriginalWidth : 1,
+            photo.OriginalHeight > 0 ? photo.OriginalHeight : 1,
+            photo.OffsetX,
+            photo.OffsetY,
+            _viewModel.SelectedSize,
+            _viewModel.SelectedMode
+        );
+
+        Point current = e.GetPosition(this);
+        double deltaX = current.X - _dragStartPoint.X;
+        double deltaY = current.Y - _dragStartPoint.Y;
+
+        if (geo.ExcessW > 1)
+        {
+            double newOx = _dragStartOffsetX - (deltaX / geo.ExcessW);
+            photo.OffsetX = Math.Clamp(newOx, -0.5, 0.5);
+        }
+
+        if (geo.ExcessH > 1)
+        {
+            double newOy = _dragStartOffsetY - (deltaY / geo.ExcessH);
+            photo.OffsetY = Math.Clamp(newOy, -0.5, 0.5);
+        }
+    }
+
+    private void PaperFrame_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_isDragging)
+        {
+            _isDragging = false;
+            ((UIElement)sender).ReleaseMouseCapture();
+        }
+    }
+
     private void MainWindow_KeyDown(object sender, KeyEventArgs e)
     {
-        var gallery = (ListBox)FindName("PhotoGallery");
-        var selectedItems = (System.Collections.IList)gallery.SelectedItems;
-        if (selectedItems == null || selectedItems.Count == 0)
-            return;
+        var filmstrip = (ListBox)FindName("FilmstripList");
+        var selectedItems = (System.Collections.IList)filmstrip.SelectedItems;
 
         bool isCtrl = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
         bool isShift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
+
+        // Q/E 快捷切换上一张/下一张
+        if (e.Key == Key.Q)
+        {
+            SelectRelativePhoto(-1);
+            return;
+        }
+        if (e.Key == Key.E)
+        {
+            SelectRelativePhoto(1);
+            return;
+        }
+
+        if (selectedItems == null || selectedItems.Count == 0)
+        {
+            if (_viewModel.SelectedPhoto != null)
+                selectedItems = new List<PhotoViewModel> { _viewModel.SelectedPhoto };
+            else
+                return;
+        }
 
         // 基础步进 0.01，按下 Shift 提升 10 倍 (0.1)
         double step = isShift ? 0.1 : 0.01;
 
         switch (e.Key)
         {
-            // WASD 与方向键统一处理
             case Key.W:
             case Key.Up:
                 if (isCtrl)
@@ -85,6 +163,19 @@ public partial class MainWindow : Window
                 _viewModel.ExportCommand.Execute(null);
                 break;
         }
+    }
+
+    private void SelectRelativePhoto(int offset)
+    {
+        if (!_viewModel.Photos.Any())
+            return;
+
+        int currentIndex = _viewModel.SelectedPhoto != null ? _viewModel.Photos.IndexOf(_viewModel.SelectedPhoto) : 0;
+        int newIndex = Math.Clamp(currentIndex + offset, 0, _viewModel.Photos.Count - 1);
+        _viewModel.SelectedPhoto = _viewModel.Photos[newIndex];
+
+        var filmstrip = (ListBox)FindName("FilmstripList");
+        filmstrip?.ScrollIntoView(_viewModel.SelectedPhoto);
     }
 
     private async void MainWindow_Drop(object sender, DragEventArgs e)

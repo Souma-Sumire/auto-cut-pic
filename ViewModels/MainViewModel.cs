@@ -150,14 +150,74 @@ namespace AutoCutPic.ViewModels
             }
         }
 
+        private BitmapSource? _highResPreview;
+        private CancellationTokenSource? _highResCts;
+
+        public BitmapSource? HighResPreview
+        {
+            get => _highResPreview;
+            set
+            {
+                _highResPreview = value;
+                OnPropertyChanged();
+            }
+        }
+
         public PhotoViewModel? SelectedPhoto
         {
             get => _selectedPhoto;
             set
             {
-                _selectedPhoto = value;
-                OnPropertyChanged();
+                if (_selectedPhoto != value)
+                {
+                    _selectedPhoto = value;
+                    OnPropertyChanged();
+                    OnSelectedPhotoChanged(value);
+                }
             }
+        }
+
+        private void OnSelectedPhotoChanged(PhotoViewModel? photo)
+        {
+            _highResCts?.Cancel();
+            if (photo == null)
+            {
+                HighResPreview = null;
+                return;
+            }
+
+            // 先使用缩略图无缝占位
+            HighResPreview = photo.Thumbnail;
+
+            _highResCts = new CancellationTokenSource();
+            var token = _highResCts.Token;
+
+            Task.Run(() =>
+            {
+                try
+                {
+                    if (token.IsCancellationRequested) return;
+                    using var img = ImageProcessor.LoadImage(photo.FilePath);
+                    if (token.IsCancellationRequested) return;
+
+                    // 高清大图预览，长边缩放至 1600px 兼顾清晰度与渲染性能
+                    if (img.Width > 1600 || img.Height > 1600)
+                    {
+                        img.Resize(new MagickGeometry(1600, 1600));
+                    }
+                    var bs = ConvertToBitmapSource(img);
+                    if (token.IsCancellationRequested) return;
+
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        if (!token.IsCancellationRequested && SelectedPhoto == photo)
+                        {
+                            HighResPreview = bs;
+                        }
+                    });
+                }
+                catch { }
+            }, token);
         }
 
         public double ZoomFactor

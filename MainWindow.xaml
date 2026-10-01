@@ -4,220 +4,515 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="clr-namespace:AutoCutPic"
     xmlns:core="clr-namespace:AutoCutPic.Core"
-    Title="AutoCutPic - 高性能批量照片裁剪"
-    Width="1000"
-    Height="700"
-    Background="#F5F5F7">
+    Title="AutoCutPic - 专业批量照片裁剪工作台"
+    Width="1200"
+    Height="820"
+    MinWidth="960"
+    MinHeight="640"
+    Background="#1E1E1E"
+    Foreground="#CCCCCC">
     <Window.Resources>
         <core:ZoomToWidthConverter x:Key="ZoomToWidthConverter" />
         <core:CropMarginConverter x:Key="CropMarginConverter" />
         <core:CropSizeConverter x:Key="CropSizeConverter" />
         <core:CropMaskConverter x:Key="CropMaskConverter" />
+        <core:ViewportPaperSizeConverter x:Key="ViewportPaperSizeConverter" />
+        <core:ViewportImgSizeConverter x:Key="ViewportImgSizeConverter" />
+        <core:ViewportImgMarginConverter x:Key="ViewportImgMarginConverter" />
         <core:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
-        <Style x:Key="NavButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#E0E0E0" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Height" Value="30" />
-            <Style.Resources>
-                <Style TargetType="Border">
-                    <Setter Property="CornerRadius" Value="4" />
-                </Style>
-            </Style.Resources>
+
+        <!-- 工业风单选框样式 -->
+        <Style x:Key="IndustrialRadio" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="#CCCCCC" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,0,15,0" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+
+        <!-- 胶卷条滚动条紧凑样式 -->
+        <Style x:Key="HorizontalScrollStyle" TargetType="ScrollBar">
+            <Setter Property="Height" Value="8" />
+            <Setter Property="Background" Value="#1E1E1E" />
         </Style>
     </Window.Resources>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="290" />
         </Grid.ColumnDefinitions>
 
-        <!--  左侧画廊区  -->
-        <Border
-            Grid.Column="0"
-            Margin="20"
-            Background="#E0E0E0"
-            BorderBrush="#E5E5E5"
-            BorderThickness="1"
-            CornerRadius="12">
-            <Grid>
-                <ListBox
-                    x:Name="PhotoGallery"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    ItemsSource="{Binding Photos}"
-                    SelectedItem="{Binding SelectedPhoto}"
-                    SelectionMode="Extended"
-                    ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel />
-                        </ItemsPanelTemplate>
-                    </ListBox.ItemsPanel>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Border Margin="10" Background="White" CornerRadius="8" BorderThickness="2" BorderBrush="Transparent">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                                                <Setter Property="BorderBrush" Value="#007AFF" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                                <Grid x:Name="ThumbnailContainer"
-                                      Width="{Binding DataContext.ZoomFactor, ElementName=PhotoGallery, Converter={StaticResource ZoomToWidthConverter}}"
-                                      Height="{Binding DataContext.ZoomFactor, ElementName=PhotoGallery, Converter={StaticResource ZoomToWidthConverter}}"
-                                      Background="#222222"
-                                      ClipToBounds="True">
-                                    <Image Source="{Binding Thumbnail}" Stretch="Uniform" />
-                                    <!-- 裁切与遮罩叠加层 -->
-                                    <Canvas IsHitTestVisible="False">
-                                        <!-- 被裁切部分半透明暗色遮罩 -->
-                                        <Path Fill="#77000000">
-                                            <Path.Data>
-                                                <MultiBinding Converter="{StaticResource CropMaskConverter}">
-                                                    <Binding Path="ActualWidth" ElementName="ThumbnailContainer" />
-                                                    <Binding Path="OriginalWidth" />
-                                                    <Binding Path="OriginalHeight" />
-                                                    <Binding Path="OffsetX" />
-                                                    <Binding Path="OffsetY" />
-                                                    <Binding Path="DataContext.SelectedSize" ElementName="PhotoGallery" />
-                                                    <Binding Path="DataContext.SelectedMode" ElementName="PhotoGallery" />
-                                                </MultiBinding>
-                                            </Path.Data>
-                                        </Path>
-                                        <!-- 裁切框边线与轻微高亮 -->
-                                        <Rectangle Stroke="#007AFF" StrokeThickness="2" Fill="#12007AFF">
-                                            <Rectangle.Width>
-                                                <MultiBinding Converter="{StaticResource CropSizeConverter}" ConverterParameter="Width">
-                                                    <Binding Path="ActualWidth" ElementName="ThumbnailContainer" />
-                                                    <Binding Path="OriginalWidth" />
-                                                    <Binding Path="OriginalHeight" />
-                                                    <Binding Path="OffsetX" />
-                                                    <Binding Path="OffsetY" />
-                                                    <Binding Path="DataContext.SelectedSize" ElementName="PhotoGallery" />
-                                                    <Binding Path="DataContext.SelectedMode" ElementName="PhotoGallery" />
-                                                </MultiBinding>
-                                            </Rectangle.Width>
-                                            <Rectangle.Height>
-                                                <MultiBinding Converter="{StaticResource CropSizeConverter}" ConverterParameter="Height">
-                                                    <Binding Path="ActualWidth" ElementName="ThumbnailContainer" />
-                                                    <Binding Path="OriginalWidth" />
-                                                    <Binding Path="OriginalHeight" />
-                                                    <Binding Path="OffsetX" />
-                                                    <Binding Path="OffsetY" />
-                                                    <Binding Path="DataContext.SelectedSize" ElementName="PhotoGallery" />
-                                                    <Binding Path="DataContext.SelectedMode" ElementName="PhotoGallery" />
-                                                </MultiBinding>
-                                            </Rectangle.Height>
-                                            <Rectangle.Margin>
-                                                <MultiBinding Converter="{StaticResource CropMarginConverter}">
-                                                    <Binding Path="ActualWidth" ElementName="ThumbnailContainer" />
-                                                    <Binding Path="OriginalWidth" />
-                                                    <Binding Path="OriginalHeight" />
-                                                    <Binding Path="OffsetX" />
-                                                    <Binding Path="OffsetY" />
-                                                    <Binding Path="DataContext.SelectedSize" ElementName="PhotoGallery" />
-                                                    <Binding Path="DataContext.SelectedMode" ElementName="PhotoGallery" />
-                                                </MultiBinding>
-                                            </Rectangle.Margin>
-                                        </Rectangle>
-                                    </Canvas>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+        <!--  左侧主工作台与底片胶卷  -->
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,20,15" Background="#88FFFFFF">
-                   <TextBlock Text="预览缩放: " VerticalAlignment="Center" Margin="5"/>
-                   <Slider Width="150" Minimum="0.5" Maximum="3.0" Value="{Binding ZoomFactor}" />
+            <!--  中央大图主视口（Photoshop 裁切画布）  -->
+            <Border
+                x:Name="MainViewportHost"
+                Grid.Row="0"
+                Background="#181818"
+                BorderBrush="#2D2D2D"
+                BorderThickness="0,0,1,1"
+                ClipToBounds="True">
+                <Grid>
+                    <!-- 空状态引导提示 -->
+                    <StackPanel
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        IsHitTestVisible="False">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Photos.Count}" Value="0">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <Border
+                            Width="80"
+                            Height="80"
+                            Margin="0,0,0,15"
+                            BorderBrush="#444444"
+                            BorderThickness="2"
+                            CornerRadius="8"
+                            HorizontalAlignment="Center">
+                            <TextBlock
+                                Text="+"
+                                FontSize="48"
+                                FontWeight="Light"
+                                Foreground="#666666"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock
+                            Text="拖拽单张照片或文件夹至此导入"
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Foreground="#888888"
+                            HorizontalAlignment="Center" />
+                        <TextBlock
+                            Margin="0,6,0,0"
+                            Text="支持 JPG, PNG, WEBP, HEIC, TIFF, ZIP 格式深度递归"
+                            FontSize="12"
+                            Foreground="#555555"
+                            HorizontalAlignment="Center" />
+                    </StackPanel>
+
+                    <!-- 相纸画幅视口（仅在有选中图片时呈现） -->
+                    <Grid
+                        x:Name="PaperFrame"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Background="#FFFFFF"
+                        ClipToBounds="True"
+                        Cursor="SizeAll"
+                        PreviewMouseDown="PaperFrame_MouseDown"
+                        PreviewMouseMove="PaperFrame_MouseMove"
+                        PreviewMouseUp="PaperFrame_MouseUp">
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedPhoto}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+
+                        <!-- 相纸视口尺寸动态绑定 -->
+                        <Grid.Width>
+                            <MultiBinding Converter="{StaticResource ViewportPaperSizeConverter}" ConverterParameter="Width">
+                                <Binding Path="ActualWidth" ElementName="MainViewportHost" />
+                                <Binding Path="ActualHeight" ElementName="MainViewportHost" />
+                                <Binding Path="SelectedPhoto.OriginalWidth" />
+                                <Binding Path="SelectedPhoto.OriginalHeight" />
+                                <Binding Path="SelectedSize" />
+                                <Binding Path="SelectedMode" />
+                            </MultiBinding>
+                        </Grid.Width>
+                        <Grid.Height>
+                            <MultiBinding Converter="{StaticResource ViewportPaperSizeConverter}" ConverterParameter="Height">
+                                <Binding Path="ActualWidth" ElementName="MainViewportHost" />
+                                <Binding Path="ActualHeight" ElementName="MainViewportHost" />
+                                <Binding Path="SelectedPhoto.OriginalWidth" />
+                                <Binding Path="SelectedPhoto.OriginalHeight" />
+                                <Binding Path="SelectedSize" />
+                                <Binding Path="SelectedMode" />
+                            </MultiBinding>
+                        </Grid.Height>
+
+                        <!-- 大图画面呈现（支持拖拽与微调滑动） -->
+                        <Image
+                            Source="{Binding HighResPreview}"
+                            Stretch="Fill"
+                            RenderOptions.BitmapScalingMode="HighQuality">
+                            <Image.Width>
+                                <MultiBinding Converter="{StaticResource ViewportImgSizeConverter}" ConverterParameter="Width">
+                                    <Binding Path="ActualWidth" ElementName="MainViewportHost" />
+                                    <Binding Path="ActualHeight" ElementName="MainViewportHost" />
+                                    <Binding Path="SelectedPhoto.OriginalWidth" />
+                                    <Binding Path="SelectedPhoto.OriginalHeight" />
+                                    <Binding Path="SelectedPhoto.OffsetX" />
+                                    <Binding Path="SelectedPhoto.OffsetY" />
+                                    <Binding Path="SelectedSize" />
+                                    <Binding Path="SelectedMode" />
+                                </MultiBinding>
+                            </Image.Width>
+                            <Image.Height>
+                                <MultiBinding Converter="{StaticResource ViewportImgSizeConverter}" ConverterParameter="Height">
+                                    <Binding Path="ActualWidth" ElementName="MainViewportHost" />
+                                    <Binding Path="ActualHeight" ElementName="MainViewportHost" />
+                                    <Binding Path="SelectedPhoto.OriginalWidth" />
+                                    <Binding Path="SelectedPhoto.OriginalHeight" />
+                                    <Binding Path="SelectedPhoto.OffsetX" />
+                                    <Binding Path="SelectedPhoto.OffsetY" />
+                                    <Binding Path="SelectedSize" />
+                                    <Binding Path="SelectedMode" />
+                                </MultiBinding>
+                            </Image.Height>
+                            <Image.Margin>
+                                <MultiBinding Converter="{StaticResource ViewportImgMarginConverter}">
+                                    <Binding Path="ActualWidth" ElementName="MainViewportHost" />
+                                    <Binding Path="ActualHeight" ElementName="MainViewportHost" />
+                                    <Binding Path="SelectedPhoto.OriginalWidth" />
+                                    <Binding Path="SelectedPhoto.OriginalHeight" />
+                                    <Binding Path="SelectedPhoto.OffsetX" />
+                                    <Binding Path="SelectedPhoto.OffsetY" />
+                                    <Binding Path="SelectedSize" />
+                                    <Binding Path="SelectedMode" />
+                                </MultiBinding>
+                            </Image.Margin>
+                        </Image>
+
+                        <!-- Photoshop 风格取景框与九宫格构图线叠加层 -->
+                        <Grid IsHitTestVisible="False">
+                            <!-- 外框双层高反差细实线 -->
+                            <Border BorderBrush="#60000000" BorderThickness="2" Margin="-1" />
+                            <Border BorderBrush="#E5FFFFFF" BorderThickness="1" />
+
+                            <!-- 九宫格三等分线 (Rule of Thirds) -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <!-- 纵向构图线 -->
+                                <Border Grid.Column="0" BorderBrush="#50FFFFFF" BorderThickness="0,0,1,0" />
+                                <Border Grid.Column="1" BorderBrush="#50FFFFFF" BorderThickness="0,0,1,0" />
+
+                                <!-- 横向构图线 -->
+                                <Border Grid.Row="0" Grid.ColumnSpan="3" BorderBrush="#50FFFFFF" BorderThickness="0,0,0,1" />
+                                <Border Grid.Row="1" Grid.ColumnSpan="3" BorderBrush="#50FFFFFF" BorderThickness="0,0,0,1" />
+                            </Grid>
+
+                            <!-- PS 风格四角直角折角控制手柄 -->
+                            <Path Data="M 0,16 L 0,0 L 16,0" Stroke="White" StrokeThickness="3" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-1,-1,0,0" />
+                            <Path Data="M 0,0 L 16,0 L 16,16" Stroke="White" StrokeThickness="3" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-1,-1,0" />
+                            <Path Data="M 0,0 L 0,16 L 16,16" Stroke="White" StrokeThickness="3" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="-1,0,0,-1" />
+                            <Path Data="M 16,0 L 16,16 L 0,16" Stroke="White" StrokeThickness="3" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-1,-1" />
+
+                            <!-- PS 风格四边中心横竖短线手柄 -->
+                            <Rectangle Width="16" Height="3" Fill="White" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-1,0,0" />
+                            <Rectangle Width="16" Height="3" Fill="White" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,-1" />
+                            <Rectangle Width="3" Height="16" Fill="White" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-1,0,0,0" />
+                            <Rectangle Width="3" Height="16" Fill="White" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,-1,0" />
+                        </Grid>
+                    </Grid>
+
+                    <!-- 视口底部半透明浮动状态指示栏 -->
+                    <Border
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Bottom"
+                        Margin="0,0,0,12"
+                        Background="#CC202020"
+                        BorderBrush="#383838"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="12,6"
+                        IsHitTestVisible="False">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedPhoto}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding SelectedPhoto.FileName}" Foreground="#FFFFFF" FontWeight="SemiBold" FontSize="12" />
+                            <TextBlock Text="  |  " Foreground="#555555" FontSize="12" />
+                            <TextBlock Text="原图: " Foreground="#888888" FontSize="12" />
+                            <TextBlock Text="{Binding SelectedPhoto.OriginalWidth}" Foreground="#AAAAAA" FontSize="12" />
+                            <TextBlock Text="x" Foreground="#888888" FontSize="12" />
+                            <TextBlock Text="{Binding SelectedPhoto.OriginalHeight}" Foreground="#AAAAAA" FontSize="12" />
+                            <TextBlock Text=" px" Foreground="#888888" FontSize="12" />
+                            <TextBlock Text="  |  " Foreground="#555555" FontSize="12" />
+                            <TextBlock Text="拖拽或 WASD 平移构图" Foreground="#0078D4" FontSize="12" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!--  底部胶卷缩略图条 (Filmstrip)  -->
+            <Border
+                Grid.Row="1"
+                Height="130"
+                Background="#141414"
+                BorderBrush="#282828"
+                BorderThickness="0,0,1,0">
+                <Grid>
+                    <ListBox
+                        x:Name="FilmstripList"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ItemsSource="{Binding Photos}"
+                        SelectedItem="{Binding SelectedPhoto}"
+                        SelectionMode="Extended"
+                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                        ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border
+                                    Margin="4,8"
+                                    Width="94"
+                                    Height="106"
+                                    Background="#1E1E1E"
+                                    BorderThickness="2"
+                                    BorderBrush="#333333">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                    <Setter Property="BorderBrush" Value="#0078D4" />
+                                                    <Setter Property="Background" Value="#252526" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Grid Margin="3">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*" />
+                                            <RowDefinition Height="18" />
+                                        </Grid.RowDefinitions>
+                                        <Image
+                                            Grid.Row="0"
+                                            Source="{Binding Thumbnail}"
+                                            Stretch="Uniform" />
+                                        <TextBlock
+                                            Grid.Row="1"
+                                            Text="{Binding FileName}"
+                                            FontSize="10"
+                                            Foreground="#888888"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            TextTrimming="CharacterEllipsis" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!-- 胶卷左上角数量统计角标 -->
+                    <Border
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Margin="8,4,0,0"
+                        Background="#CC000000"
+                        Padding="6,2"
+                        CornerRadius="2"
+                        IsHitTestVisible="False">
+                        <TextBlock
+                            Text="{Binding Photos.Count, StringFormat='共 {0} 张照片'}"
+                            FontSize="10"
+                            Foreground="#888888" />
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!--  右侧 Photoshop 属性设置面板  -->
+        <Border
+            Grid.Column="1"
+            Background="#232323"
+            BorderBrush="#2D2D2D"
+            BorderThickness="0,0,0,0"
+            Padding="18">
+            <DockPanel LastChildFill="True">
+                <!-- 底部批量导出按钮与状态信息 -->
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,15,0,0">
+                    <Button
+                        Height="40"
+                        Background="#0078D4"
+                        Command="{Binding ExportCommand}"
+                        Content="批量开始导出"
+                        Cursor="Hand"
+                        FontWeight="SemiBold"
+                        FontSize="14"
+                        Foreground="White"
+                        BorderThickness="0">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="4" />
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                    <TextBlock
+                        Margin="0,8,0,0"
+                        Foreground="#888888"
+                        FontSize="11"
+                        TextWrapping="Wrap"
+                        Text="导出位置: 原图目录下的 Clipped_Photos" />
+                    <TextBlock
+                        Margin="0,6,0,0"
+                        Foreground="#AAAAAA"
+                        FontSize="12"
+                        FontWeight="Medium"
+                        Text="{Binding StatusText}" />
                 </StackPanel>
 
-                <TextBlock
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    FontSize="18"
-                    Foreground="#999"
-                    Text="拖拽文件夹至此开始"
-                    IsHitTestVisible="False">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Visibility" Value="Collapsed" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Photos.Count}" Value="0">
-                                    <Setter Property="Visibility" Value="Visible" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-            </Grid>
+                <!-- 上部属性控制 -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock
+                            Margin="0,0,0,16"
+                            FontSize="15"
+                            FontWeight="Bold"
+                            Foreground="#EEEEEE"
+                            Text="冲印属性面板" />
+
+                        <!-- 模块 1：输出规格 -->
+                        <Border
+                            Background="#1E1E1E"
+                            BorderBrush="#303030"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="12"
+                            Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock
+                                    FontSize="12"
+                                    FontWeight="SemiBold"
+                                    Foreground="#AAAAAA"
+                                    Text="目标相纸规格 (300 DPI)" />
+                                <ComboBox
+                                    Margin="0,8,0,8"
+                                    DisplayMemberPath="Name"
+                                    ItemsSource="{Binding Sizes}"
+                                    SelectedItem="{Binding SelectedSize}"
+                                    Height="28" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="实际输出: " FontSize="11" Foreground="#666666" />
+                                    <TextBlock Text="{Binding SelectedSize.PixelWidth}" FontSize="11" Foreground="#888888" />
+                                    <TextBlock Text="x" FontSize="11" Foreground="#666666" />
+                                    <TextBlock Text="{Binding SelectedSize.PixelHeight}" FontSize="11" Foreground="#888888" />
+                                    <TextBlock Text=" px (横竖自适应)" FontSize="11" Foreground="#666666" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 模块 2：裁切模式 -->
+                        <Border
+                            Background="#1E1E1E"
+                            BorderBrush="#303030"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="12"
+                            Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock
+                                    FontSize="12"
+                                    FontWeight="SemiBold"
+                                    Foreground="#AAAAAA"
+                                    Text="裁切与排版模式" />
+                                <StackPanel Margin="0,10,0,4" Orientation="Horizontal">
+                                    <RadioButton
+                                        Style="{StaticResource IndustrialRadio}"
+                                        Content="裁剪填充 (Fill)"
+                                        IsChecked="{Binding SelectedMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Fill}" />
+                                    <RadioButton
+                                        Style="{StaticResource IndustrialRadio}"
+                                        Content="留白完整 (Fit)"
+                                        IsChecked="{Binding SelectedMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Fit}" />
+                                </StackPanel>
+                                <TextBlock
+                                    Text="Fill 填满相纸且无白边；Fit 保留原图全景并自动补白。"
+                                    FontSize="11"
+                                    Foreground="#666666"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 模块 3：快捷键工作流指南 -->
+                        <Border
+                            Background="#1A1A1A"
+                            BorderBrush="#2C2C2C"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="12">
+                            <StackPanel>
+                                <TextBlock
+                                    FontSize="12"
+                                    FontWeight="SemiBold"
+                                    Foreground="#888888"
+                                    Text="快捷键与操作手势" />
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="20" />
+                                        <RowDefinition Height="20" />
+                                        <RowDefinition Height="20" />
+                                        <RowDefinition Height="20" />
+                                        <RowDefinition Height="20" />
+                                        <RowDefinition Height="20" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="鼠标左键拖拽" Foreground="#0078D4" FontSize="11" FontWeight="Medium" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="在画布上自由平移构图" Foreground="#888888" FontSize="11" Margin="8,0,0,0" />
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="WASD / 方向键" Foreground="#CCCCCC" FontSize="11" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="1% 像素级步进微调" Foreground="#888888" FontSize="11" Margin="8,0,0,0" />
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Shift + WASD" Foreground="#CCCCCC" FontSize="11" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="10% 快速大幅移动" Foreground="#888888" FontSize="11" Margin="8,0,0,0" />
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Ctrl + WASD" Foreground="#CCCCCC" FontSize="11" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="瞬间对齐边沿贴边" Foreground="#888888" FontSize="11" Margin="8,0,0,0" />
+
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Space (空格键)" Foreground="#CCCCCC" FontSize="11" />
+                                    <TextBlock Grid.Row="4" Grid.Column="1" Text="切换填充 / 留白模式" Foreground="#888888" FontSize="11" Margin="8,0,0,0" />
+
+                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Enter (回车键)" Foreground="#CCCCCC" FontSize="11" />
+                                    <TextBlock Grid.Row="5" Grid.Column="1" Text="直接开始批量导出" Foreground="#888888" FontSize="11" Margin="8,0,0,0" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
         </Border>
-
-        <!--  右侧设置区  -->
-        <StackPanel Grid.Column="1" Margin="20">
-            <TextBlock
-                Margin="0,0,0,20"
-                FontSize="20"
-                FontWeight="Bold"
-                Foreground="#333"
-                Text="裁剪设置" />
-
-            <TextBlock
-                Margin="0,10,0,5"
-                Foreground="#666"
-                Text="输出尺寸" />
-            <ComboBox
-                Margin="0,0,0,15"
-                DisplayMemberPath="Name"
-                ItemsSource="{Binding Sizes}"
-                SelectedItem="{Binding SelectedSize}" />
-
-            <TextBlock
-                Margin="0,10,0,5"
-                Foreground="#666"
-                Text="裁剪方式" />
-            <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
-                <RadioButton
-                    Margin="0,0,20,0"
-                    Content="裁剪填充"
-                    IsChecked="{Binding SelectedMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Fill}" />
-                <RadioButton 
-                    Content="留白完整" 
-                    IsChecked="{Binding SelectedMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Fit}" />
-            </StackPanel>
-
-            <Separator Margin="0,10,0,20" />
-
-            <Button
-                Height="45"
-                Background="#007AFF"
-                Command="{Binding ExportCommand}"
-                Content="批量开始导出"
-                Cursor="Hand"
-                FontWeight="Bold"
-                Foreground="White"
-                BorderThickness="0">
-                <Button.Resources>
-                    <Style TargetType="Border">
-                        <Setter Property="CornerRadius" Value="8" />
-                    </Style>
-                </Button.Resources>
-            </Button>
-        </StackPanel>
-
-        <!--  底部状态栏  -->
-        <StatusBar
-            Grid.ColumnSpan="2"
-            Margin="20,0,20,10"
-            VerticalAlignment="Bottom"
-            Background="Transparent">
-            <StatusBarItem>
-                <TextBlock Foreground="#888" Text="{Binding StatusText}" />
-            </StatusBarItem>
-        </StatusBar>
     </Grid>
 </Window>
