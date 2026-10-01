@@ -55,8 +55,8 @@ namespace AutoCutPic.Core.Calculators
 
             static bool IsBorderColor(byte r, byte g, byte b)
             {
-                bool isBlack = r <= 18 && g <= 18 && b <= 18;
-                bool isWhite = r >= 238 && g >= 238 && b >= 238;
+                bool isBlack = r <= 30 && g <= 30 && b <= 30;
+                bool isWhite = r >= 230 && g >= 230 && b >= 230;
                 return isBlack || isWhite;
             }
 
@@ -64,112 +64,68 @@ namespace AutoCutPic.Core.Calculators
             {
                 // 长边为纵向 (H > W)，检查顶部和底部连续纯黑/纯白条 (letterbox)
                 int sampleStepX = Math.Max(1, width / 20);
-                int top = 0;
                 int maxScanH = (int)(height * 0.42);
+                const double threshold = 0.82;
 
+                int top = 0;
+                int missTop = 0;
                 for (int y = 0; y < maxScanH; y++)
                 {
-                    int borderCount = 0;
-                    int totalSampled = 0;
-                    for (int x = 0; x < width; x += sampleStepX)
-                    {
-                        var (r, g, b) = getPixel(x, y);
-                        if (IsBorderColor(r, g, b))
-                            borderCount++;
-                        totalSampled++;
-                    }
-
-                    if (totalSampled > 0 && (double)borderCount / totalSampled >= 0.92)
-                        top = y + 1;
-                    else
-                        break;
+                    int bc = 0, total = 0;
+                    for (int x = 0; x < width; x += sampleStepX) { var (r, g, b) = getPixel(x, y); if (IsBorderColor(r, g, b)) bc++; total++; }
+                    if (total > 0 && (double)bc / total >= threshold) { top = y + 1; missTop = 0; }
+                    else if (++missTop > 2) break;
                 }
 
                 int bottom = height - 1;
-                int minScanBottom = height - 1 - maxScanH;
-                for (int y = height - 1; y >= minScanBottom; y--)
+                int missBot = 0;
+                for (int y = height - 1; y >= height - maxScanH; y--)
                 {
-                    int borderCount = 0;
-                    int totalSampled = 0;
-                    for (int x = 0; x < width; x += sampleStepX)
-                    {
-                        var (r, g, b) = getPixel(x, y);
-                        if (IsBorderColor(r, g, b))
-                            borderCount++;
-                        totalSampled++;
-                    }
-
-                    if (totalSampled > 0 && (double)borderCount / totalSampled >= 0.92)
-                        bottom = y - 1;
-                    else
-                        break;
+                    int bc = 0, total = 0;
+                    for (int x = 0; x < width; x += sampleStepX) { var (r, g, b) = getPixel(x, y); if (IsBorderColor(r, g, b)) bc++; total++; }
+                    if (total > 0 && (double)bc / total >= threshold) { bottom = y - 1; missBot = 0; }
+                    else if (++missBot > 2) break;
                 }
 
                 int effectiveH = Math.Max(1, bottom - top + 1);
                 int effectiveW = width;
 
-                // 若剔除上下两端黑白矩形条后，有效内容宽度大于高度，则判定为横版相纸
                 if (effectiveW > effectiveH)
-                {
                     return TargetOrientation.Landscape;
-                }
-
                 return TargetOrientation.Portrait;
             }
             else
             {
                 // 长边为横向 (W >= H)，检查左右两侧连续纯黑/纯白条 (pillarbox)
                 int sampleStepY = Math.Max(1, height / 20);
-                int left = 0;
                 int maxScanW = (int)(width * 0.42);
+                const double threshold = 0.82;
 
+                int left = 0;
+                int missLeft = 0;
                 for (int x = 0; x < maxScanW; x++)
                 {
-                    int borderCount = 0;
-                    int totalSampled = 0;
-                    for (int y = 0; y < height; y += sampleStepY)
-                    {
-                        var (r, g, b) = getPixel(x, y);
-                        if (IsBorderColor(r, g, b))
-                            borderCount++;
-                        totalSampled++;
-                    }
-
-                    if (totalSampled > 0 && (double)borderCount / totalSampled >= 0.92)
-                        left = x + 1;
-                    else
-                        break;
+                    int bc = 0, total = 0;
+                    for (int y = 0; y < height; y += sampleStepY) { var (r, g, b) = getPixel(x, y); if (IsBorderColor(r, g, b)) bc++; total++; }
+                    if (total > 0 && (double)bc / total >= threshold) { left = x + 1; missLeft = 0; }
+                    else if (++missLeft > 2) break;
                 }
 
                 int right = width - 1;
-                int minScanRight = width - 1 - maxScanW;
-                for (int x = width - 1; x >= minScanRight; x--)
+                int missRight = 0;
+                for (int x = width - 1; x >= width - maxScanW; x--)
                 {
-                    int borderCount = 0;
-                    int totalSampled = 0;
-                    for (int y = 0; y < height; y += sampleStepY)
-                    {
-                        var (r, g, b) = getPixel(x, y);
-                        if (IsBorderColor(r, g, b))
-                            borderCount++;
-                        totalSampled++;
-                    }
-
-                    if (totalSampled > 0 && (double)borderCount / totalSampled >= 0.92)
-                        right = x - 1;
-                    else
-                        break;
+                    int bc = 0, total = 0;
+                    for (int y = 0; y < height; y += sampleStepY) { var (r, g, b) = getPixel(x, y); if (IsBorderColor(r, g, b)) bc++; total++; }
+                    if (total > 0 && (double)bc / total >= threshold) { right = x - 1; missRight = 0; }
+                    else if (++missRight > 2) break;
                 }
 
                 int effectiveW = Math.Max(1, right - left + 1);
                 int effectiveH = height;
 
-                // 若剔除左右两边黑白矩形条后，有效内容高度大于宽度，则判定为纵向相纸
                 if (effectiveH > effectiveW)
-                {
                     return TargetOrientation.Portrait;
-                }
-
                 return TargetOrientation.Landscape;
             }
         }

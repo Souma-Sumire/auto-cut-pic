@@ -749,7 +749,6 @@
                                     Height="{Binding DataContext.GalleryCardHeight, RelativeSource={RelativeSource AncestorType=Window}}"
                                     Background="#1E1E1E"
                                     BorderThickness="2"
-                                    BorderBrush="#2F2F2F"
                                     CornerRadius="4"
                                     Cursor="Hand">
                                     <Border.Visibility>
@@ -791,6 +790,7 @@
                                     </Border.ContextMenu>
                                     <Border.Style>
                                         <Style TargetType="Border">
+                                            <Setter Property="BorderBrush" Value="#2F2F2F" />
                                             <Style.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
                                                     <Setter Property="BorderBrush" Value="#555555" />
