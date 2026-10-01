@@ -692,25 +692,17 @@
                 </Style>
             </Grid.Style>
 
-            <!-- 居中全屏大面积投递卡片 -->
-            <Border
+            <Grid
                 MaxWidth="880"
-                MaxHeight="580"
-                Margin="48"
-                Background="#1E1E1E"
-                BorderBrush="#333333"
-                BorderThickness="2"
-                CornerRadius="12"
-                Padding="40">
-                <Grid>
-                    <!-- 虚线轮廓装饰 -->
-                    <Rectangle
-                        Stroke="#3E3E3E"
-                        StrokeThickness="1.5"
-                        StrokeDashArray="6 4"
-                        RadiusX="10"
-                        RadiusY="10"
-                        IsHitTestVisible="False" />
+                MaxHeight="560"
+                Margin="32">
+                <Rectangle
+                    Stroke="#2E2E2E"
+                    StrokeThickness="1.5"
+                    StrokeDashArray="6 6"
+                    RadiusX="8"
+                    RadiusY="8"
+                    IsHitTestVisible="False" />
 
                     <StackPanel
                         HorizontalAlignment="Center"
@@ -821,7 +813,6 @@
                             HorizontalAlignment="Center" />
                     </StackPanel>
                 </Grid>
-            </Border>
         </Grid>
     </Grid>
 </Window>
