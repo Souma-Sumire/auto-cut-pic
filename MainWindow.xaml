@@ -646,246 +646,294 @@
                 Background="#141414"
                 BorderBrush="#2D2D2D"
                 BorderThickness="0,1,1,0">
-                <ListBox
-                    x:Name="BatchGalleryList"
-                    ItemsSource="{Binding Photos}"
-                    SelectedItem="{Binding SelectedPhoto}"
-                    SelectionMode="Extended"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Padding="12,10"
-                    IsTextSearchEnabled="False"
-                    KeyboardNavigation.DirectionalNavigation="None"
-                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                    ScrollViewer.VerticalScrollBarVisibility="Auto">
-                    <ListBox.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel Orientation="Horizontal" />
-                        </ItemsPanelTemplate>
-                    </ListBox.ItemsPanel>
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem">
-                            <Setter Property="Padding" Value="0" />
-                            <Setter Property="Margin" Value="4" />
-                            <Setter Property="Background" Value="Transparent" />
-                            <Setter Property="BorderThickness" Value="0" />
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ListBoxItem">
-                                        <ContentPresenter />
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </ListBox.ItemContainerStyle>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <!-- 资源管理器风格平铺照片卡片 -->
-                            <Border
-                                Width="180"
-                                Height="145"
-                                Background="#1E1E1E"
-                                BorderThickness="2"
-                                BorderBrush="#2F2F2F"
-                                CornerRadius="4"
-                                Cursor="Hand">
-                                <Border.Opacity>
-                                    <MultiBinding Converter="{StaticResource DimMatchedOpacityConverter}">
-                                        <Binding Path="IsAspectMatched" />
-                                        <Binding Path="DataContext.DimMatchedPhotos" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                    </MultiBinding>
-                                </Border.Opacity>
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="BorderBrush" Value="#555555" />
-                                            </Trigger>
-                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                                                <Setter Property="BorderBrush" Value="#0078D4" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="125" />
-                                        <RowDefinition Height="38" />
-                                    </Grid.RowDefinitions>
+                <Grid>
+                    <ListBox
+                        x:Name="BatchGalleryList"
+                        ItemsSource="{Binding Photos}"
+                        SelectedItem="{Binding SelectedPhoto}"
+                        SelectionMode="Extended"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="12,10"
+                        IsTextSearchEnabled="False"
+                        KeyboardNavigation.DirectionalNavigation="None"
+                        ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                        ScrollViewer.VerticalScrollBarVisibility="Auto"
+                        PreviewMouseDown="BatchGalleryList_PreviewMouseDown">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Margin" Value="4" />
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="BorderThickness" Value="0" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <ContentPresenter />
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <!-- 资源管理器风格平铺照片卡片 -->
+                                <Border
+                                    Width="180"
+                                    Height="172"
+                                    Background="#1E1E1E"
+                                    BorderThickness="2"
+                                    BorderBrush="#2F2F2F"
+                                    CornerRadius="4"
+                                    Cursor="Hand">
+                                    <Border.Opacity>
+                                        <MultiBinding Converter="{StaticResource DimMatchedOpacityConverter}">
+                                            <Binding Path="IsAspectMatched" />
+                                            <Binding Path="DataContext.DimMatchedPhotos" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                        </MultiBinding>
+                                    </Border.Opacity>
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="BorderBrush" Value="#555555" />
+                                                </Trigger>
+                                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                    <Setter Property="BorderBrush" Value="#0078D4" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="120" />
+                                            <RowDefinition Height="48" />
+                                        </Grid.RowDefinitions>
 
-                                    <!-- 照片视口展示区 (深暗色背景) -->
-                                    <Border
-                                        Grid.Row="0"
-                                        Background="#111111"
-                                        CornerRadius="3,3,0,0"
-                                        ClipToBounds="True">
-                                        <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <!-- Fit 模式纯白相纸底板 -->
-                                            <Border
-                                                Background="#FFFFFF"
-                                                HorizontalAlignment="Left"
-                                                VerticalAlignment="Top">
-                                                <Border.Visibility>
-                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="FitPaperVisibility">
-                                                        <Binding Path="OriginalWidth" />
-                                                        <Binding Path="OriginalHeight" />
-                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="Mode" />
-                                                        <Binding Path="OffsetX" />
-                                                        <Binding Path="OffsetY" />
-                                                    </MultiBinding>
-                                                </Border.Visibility>
-                                                <Border.Width>
-                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropWidth">
-                                                        <Binding Path="OriginalWidth" />
-                                                        <Binding Path="OriginalHeight" />
-                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="Mode" />
-                                                        <Binding Path="OffsetX" />
-                                                        <Binding Path="OffsetY" />
-                                                    </MultiBinding>
-                                                </Border.Width>
-                                                <Border.Height>
-                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropHeight">
-                                                        <Binding Path="OriginalWidth" />
-                                                        <Binding Path="OriginalHeight" />
-                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="Mode" />
-                                                        <Binding Path="OffsetX" />
-                                                        <Binding Path="OffsetY" />
-                                                    </MultiBinding>
-                                                </Border.Height>
-                                                <Border.Margin>
-                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropMargin">
-                                                        <Binding Path="OriginalWidth" />
-                                                        <Binding Path="OriginalHeight" />
-                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="Mode" />
-                                                        <Binding Path="OffsetX" />
-                                                        <Binding Path="OffsetY" />
-                                                    </MultiBinding>
-                                                </Border.Margin>
-                                            </Border>
+                                        <!-- 照片视口展示区 (深暗色背景) -->
+                                        <Border
+                                            Grid.Row="0"
+                                            Background="#111111"
+                                            CornerRadius="3,3,0,0"
+                                            ClipToBounds="True">
+                                            <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <!-- Fit 模式纯白相纸底板 -->
+                                                <Border
+                                                    Background="#FFFFFF"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Top">
+                                                    <Border.Visibility>
+                                                        <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="FitPaperVisibility">
+                                                            <Binding Path="OriginalWidth" />
+                                                            <Binding Path="OriginalHeight" />
+                                                            <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="Mode" />
+                                                            <Binding Path="OffsetX" />
+                                                            <Binding Path="OffsetY" />
+                                                        </MultiBinding>
+                                                    </Border.Visibility>
+                                                    <Border.Width>
+                                                        <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropWidth">
+                                                            <Binding Path="OriginalWidth" />
+                                                            <Binding Path="OriginalHeight" />
+                                                            <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="Mode" />
+                                                            <Binding Path="OffsetX" />
+                                                            <Binding Path="OffsetY" />
+                                                        </MultiBinding>
+                                                    </Border.Width>
+                                                    <Border.Height>
+                                                        <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropHeight">
+                                                            <Binding Path="OriginalWidth" />
+                                                            <Binding Path="OriginalHeight" />
+                                                            <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="Mode" />
+                                                            <Binding Path="OffsetX" />
+                                                            <Binding Path="OffsetY" />
+                                                        </MultiBinding>
+                                                    </Border.Height>
+                                                    <Border.Margin>
+                                                        <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="CropMargin">
+                                                            <Binding Path="OriginalWidth" />
+                                                            <Binding Path="OriginalHeight" />
+                                                            <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="Mode" />
+                                                            <Binding Path="OffsetX" />
+                                                            <Binding Path="OffsetY" />
+                                                        </MultiBinding>
+                                                    </Border.Margin>
+                                                </Border>
 
-                                            <!-- 完整照片原图呈现 -->
-                                            <Image
-                                                Source="{Binding Thumbnail}"
-                                                Stretch="Fill"
-                                                HorizontalAlignment="Left"
-                                                VerticalAlignment="Top"
-                                                RenderOptions.BitmapScalingMode="LowQuality">
-                                                <Image.Width>
-                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="ImageWidth">
-                                                        <Binding Path="OriginalWidth" />
-                                                        <Binding Path="OriginalHeight" />
-                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="Mode" />
-                                                        <Binding Path="OffsetX" />
-                                                        <Binding Path="OffsetY" />
-                                                    </MultiBinding>
-                                                </Image.Width>
-                                                <Image.Height>
-                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="ImageHeight">
-                                                        <Binding Path="OriginalWidth" />
-                                                        <Binding Path="OriginalHeight" />
-                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="Mode" />
-                                                        <Binding Path="OffsetX" />
-                                                        <Binding Path="OffsetY" />
-                                                    </MultiBinding>
-                                                </Image.Height>
-                                                <Image.Margin>
-                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="ImageMargin">
-                                                        <Binding Path="OriginalWidth" />
-                                                        <Binding Path="OriginalHeight" />
-                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="Mode" />
-                                                        <Binding Path="OffsetX" />
-                                                        <Binding Path="OffsetY" />
-                                                    </MultiBinding>
-                                                </Image.Margin>
-                                            </Image>
+                                                <!-- 完整照片原图呈现 -->
+                                                <Image
+                                                    Source="{Binding Thumbnail}"
+                                                    Stretch="Fill"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Top"
+                                                    RenderOptions.BitmapScalingMode="LowQuality">
+                                                    <Image.Width>
+                                                        <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="ImageWidth">
+                                                            <Binding Path="OriginalWidth" />
+                                                            <Binding Path="OriginalHeight" />
+                                                            <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="Mode" />
+                                                            <Binding Path="OffsetX" />
+                                                            <Binding Path="OffsetY" />
+                                                        </MultiBinding>
+                                                    </Image.Width>
+                                                    <Image.Height>
+                                                        <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="ImageHeight">
+                                                            <Binding Path="OriginalWidth" />
+                                                            <Binding Path="OriginalHeight" />
+                                                            <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="Mode" />
+                                                            <Binding Path="OffsetX" />
+                                                            <Binding Path="OffsetY" />
+                                                        </MultiBinding>
+                                                    </Image.Height>
+                                                    <Image.Margin>
+                                                        <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="ImageMargin">
+                                                            <Binding Path="OriginalWidth" />
+                                                            <Binding Path="OriginalHeight" />
+                                                            <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="Mode" />
+                                                            <Binding Path="OffsetX" />
+                                                            <Binding Path="OffsetY" />
+                                                        </MultiBinding>
+                                                    </Image.Margin>
+                                                </Image>
 
-                                            <!-- Fill 模式下：被裁切掉的外围区域暗色半透明遮罩 (清楚可见被裁切掉的内容) -->
-                                            <Path
-                                                Fill="#A0000000"
-                                                IsHitTestVisible="False">
-                                                <Path.Data>
-                                                    <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="MaskGeometry">
-                                                        <Binding Path="OriginalWidth" />
-                                                        <Binding Path="OriginalHeight" />
-                                                        <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                                        <Binding Path="Mode" />
-                                                        <Binding Path="OffsetX" />
-                                                        <Binding Path="OffsetY" />
-                                                    </MultiBinding>
-                                                </Path.Data>
-                                            </Path>
+                                                <!-- Fill 模式下：被裁切掉的外围区域暗色半透明遮罩 (清楚可见被裁切掉的内容) -->
+                                                <Path
+                                                    Fill="#A0000000"
+                                                    IsHitTestVisible="False">
+                                                    <Path.Data>
+                                                        <MultiBinding Converter="{StaticResource BatchCardCropConverter}" ConverterParameter="MaskGeometry">
+                                                            <Binding Path="OriginalWidth" />
+                                                            <Binding Path="OriginalHeight" />
+                                                            <Binding Path="DataContext.SelectedSize" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="Mode" />
+                                                            <Binding Path="OffsetX" />
+                                                            <Binding Path="OffsetY" />
+                                                        </MultiBinding>
+                                                    </Path.Data>
+                                                </Path>
 
+                                                <!-- 留白模式状态微标签 -->
+                                                <Border
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Top"
+                                                    Margin="6"
+                                                    Background="#CC1F1F1F"
+                                                    BorderBrush="#44FFFFFF"
+                                                    BorderThickness="1"
+                                                    CornerRadius="0"
+                                                    Padding="4,1"
+                                                    IsHitTestVisible="False">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Mode}" Value="Fit">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="留白" FontSize="9" Foreground="#CCCCCC" FontWeight="Medium" />
+                                                </Border>
+                                            </Grid>
+                                        </Border>
 
-                                            <!-- 留白模式状态微标签 -->
-                                            <Border
-                                                HorizontalAlignment="Right"
-                                                VerticalAlignment="Top"
-                                                Margin="6"
-                                                Background="#CC1F1F1F"
-                                                BorderBrush="#44FFFFFF"
-                                                BorderThickness="1"
-                                                CornerRadius="0"
-                                                Padding="4,1"
-                                                IsHitTestVisible="False">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <!-- 卡片底部元数据 (文件名与尺寸完整展示) -->
+                                        <Grid Grid.Row="1" Margin="8,4,8,4" VerticalAlignment="Center">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <!-- 第一行：完整/紧凑文件名 -->
+                                            <TextBlock
+                                                Grid.Row="0"
+                                                Text="{Binding FileName}"
+                                                Foreground="#D0D0D0"
+                                                FontSize="11"
+                                                FontWeight="Medium"
+                                                TextTrimming="CharacterEllipsis">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Mode}" Value="Fit">
-                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                                <Setter Property="Foreground" Value="#FFFFFF" />
+                                                                <Setter Property="FontWeight" Value="SemiBold" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
-                                                </Border.Style>
-                                                <TextBlock Text="留白" FontSize="9" Foreground="#CCCCCC" FontWeight="Medium" />
-                                            </Border>
-                                        </Grid>
-                                    </Border>
+                                                </TextBlock.Style>
+                                            </TextBlock>
 
-                                    <!-- 卡片底部元数据 -->
-                                    <Grid Grid.Row="1" Margin="8,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock
-                                            Grid.Column="0"
-                                            Text="{Binding FileName}"
-                                            Foreground="#D0D0D0"
-                                            FontSize="11"
-                                            VerticalAlignment="Center"
-                                            TextTrimming="CharacterEllipsis">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                                                            <Setter Property="Foreground" Value="#FFFFFF" />
-                                                            <Setter Property="FontWeight" Value="SemiBold" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                        <TextBlock
-                                            Grid.Column="1"
-                                            Text="{Binding OriginalWidth, StringFormat='{}{0}w'}"
-                                            Foreground="#666666"
-                                            FontSize="10"
-                                            VerticalAlignment="Center"
-                                            Margin="4,0,0,0" />
+                                            <!-- 第二行：真实像素物理分辨率与免修状态 -->
+                                            <Grid Grid.Row="1" Margin="0,3,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock
+                                                    Grid.Column="0"
+                                                    FontSize="10"
+                                                    Foreground="#808080"
+                                                    VerticalAlignment="Center">
+                                                    <TextBlock.Text>
+                                                        <MultiBinding StringFormat="{}{0} × {1} px">
+                                                            <Binding Path="OriginalWidth" />
+                                                            <Binding Path="OriginalHeight" />
+                                                        </MultiBinding>
+                                                    </TextBlock.Text>
+                                                </TextBlock>
+                                                <TextBlock
+                                                    Grid.Column="1"
+                                                    Text="免修"
+                                                    FontSize="9"
+                                                    Foreground="#5FA3FF"
+                                                    VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsAspectMatched}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Grid>
+                                        </Grid>
                                     </Grid>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!-- 鼠标中键自动平滑滚动指示器 (类似 Windows 资源管理器) -->
+                    <Canvas x:Name="AutoScrollCanvas" IsHitTestVisible="False">
+                        <Grid
+                            x:Name="AutoScrollAnchor"
+                            Width="32"
+                            Height="32"
+                            Visibility="Collapsed">
+                            <Ellipse Fill="#E6222222" Stroke="#88FFFFFF" StrokeThickness="1.5" />
+                            <Ellipse Width="6" Height="6" Fill="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Path Data="M 12,9 L 16,5 L 20,9" Stroke="#FFFFFF" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,3,0,0" />
+                            <Path Data="M 12,23 L 16,27 L 20,23" Stroke="#FFFFFF" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,3" />
+                        </Grid>
+                    </Canvas>
+                </Grid>
             </Border>
 
         </Grid>

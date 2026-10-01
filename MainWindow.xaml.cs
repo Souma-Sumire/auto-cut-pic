@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using AutoCutPic.Core;
 using AutoCutPic.ViewModels;
 
@@ -23,6 +24,12 @@ public partial class MainWindow : Window
     private double _dragStartOffsetY;
     private string _activeHandleTag = "All";
 
+    // 鼠标中键自动平滑滚动系统 (类似 Windows 资源管理器)
+    private bool _isMiddleAutoScrolling;
+    private Point _autoScrollOrigin;
+    private DateTime _middlePressTime;
+    private ScrollViewer? _galleryScrollViewer;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -32,6 +39,10 @@ public partial class MainWindow : Window
         AllowDrop = true;
         Drop += MainWindow_Drop;
         PreviewKeyDown += MainWindow_PreviewKeyDown;
+        PreviewMouseDown += MainWindow_PreviewMouseDown;
+        PreviewMouseUp += MainWindow_PreviewMouseUp;
+        Deactivated += (_, _) => StopAutoScroll();
+
         Loaded += (_, _) =>
         {
             Focus();
@@ -156,6 +167,16 @@ public partial class MainWindow : Window
 
     private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (_isMiddleAutoScrolling)
+        {
+            StopAutoScroll();
+            if (e.Key == Key.Escape)
+            {
+                e.Handled = true;
+                return;
+            }
+        }
+
         Key key = e.Key == Key.ImeProcessed ? e.ImeProcessedKey : e.Key;
         bool isCtrl = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
         bool isShift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
@@ -400,4 +421,154 @@ public partial class MainWindow : Window
             }
         }
     }
+
+    #region 鼠标中键自动平滑滚动 (Auto-Scroll)
+
+    private void BatchGalleryList_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Middle)
+        {
+            if (_isMiddleAutoScrolling)
+            {
+                StopAutoScroll();
+                e.Handled = true;
+                return;
+            }
+
+            StartAutoScroll(e);
+            e.Handled = true;
+        }
+        else if (_isMiddleAutoScrolling)
+        {
+            StopAutoScroll();
+            e.Handled = true;
+        }
+    }
+
+    private void MainWindow_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (_isMiddleAutoScrolling)
+        {
+            if (e.ChangedButton != MouseButton.Middle || (DateTime.UtcNow - _middlePressTime).TotalMilliseconds > 150)
+            {
+                StopAutoScroll();
+                e.Handled = true;
+            }
+        }
+    }
+
+    private void MainWindow_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_isMiddleAutoScrolling && e.ChangedButton == MouseButton.Middle)
+        {
+            Point currentPos = e.GetPosition(this);
+            double dist = (currentPos - _autoScrollOrigin).Length;
+            double elapsedMs = (DateTime.UtcNow - _middlePressTime).TotalMilliseconds;
+
+            // 若中键长按超过 250ms 或已发生明确拖拽位移 (> 8px)，松开即结束滚动
+            if (elapsedMs > 250 || dist > 8.0)
+            {
+                StopAutoScroll();
+                e.Handled = true;
+            }
+        }
+    }
+
+    private void StartAutoScroll(MouseButtonEventArgs e)
+    {
+        var batchGallery = (ListBox?)FindName("BatchGalleryList");
+        if (batchGallery == null)
+            return;
+
+        _galleryScrollViewer ??= FindVisualChild<ScrollViewer>(batchGallery);
+        if (_galleryScrollViewer == null)
+            return;
+
+        _isMiddleAutoScrolling = true;
+        _middlePressTime = DateTime.UtcNow;
+        _autoScrollOrigin = e.GetPosition(this);
+
+        var anchor = (FrameworkElement?)FindName("AutoScrollAnchor");
+        var canvas = (FrameworkElement?)FindName("AutoScrollCanvas");
+        if (anchor != null && canvas != null)
+        {
+            Point canvasPos = e.GetPosition(canvas);
+            Canvas.SetLeft(anchor, canvasPos.X - 16);
+            Canvas.SetTop(anchor, canvasPos.Y - 16);
+            anchor.Visibility = Visibility.Visible;
+        }
+
+        CaptureMouse();
+        CompositionTarget.Rendering += AutoScroll_OnRendering;
+    }
+
+    private void StopAutoScroll()
+    {
+        if (!_isMiddleAutoScrolling)
+            return;
+
+        _isMiddleAutoScrolling = false;
+        CompositionTarget.Rendering -= AutoScroll_OnRendering;
+
+        var anchor = (FrameworkElement?)FindName("AutoScrollAnchor");
+        if (anchor != null)
+        {
+            anchor.Visibility = Visibility.Collapsed;
+        }
+
+        Cursor = Cursors.Arrow;
+        ReleaseMouseCapture();
+    }
+
+    private void AutoScroll_OnRendering(object? sender, EventArgs e)
+    {
+        if (!_isMiddleAutoScrolling || _galleryScrollViewer == null)
+            return;
+
+        Point currentPos = Mouse.GetPosition(this);
+        double deltaY = currentPos.Y - _autoScrollOrigin.Y;
+        const double deadZone = 12.0;
+
+        if (Math.Abs(deltaY) <= deadZone)
+        {
+            Cursor = Cursors.ScrollNS;
+            return;
+        }
+
+        if (deltaY > deadZone)
+        {
+            Cursor = Cursors.ScrollS;
+            double dist = deltaY - deadZone;
+            double speed = Math.Min(60.0, Math.Pow(dist / 8.0, 1.25));
+            _galleryScrollViewer.ScrollToVerticalOffset(_galleryScrollViewer.VerticalOffset + speed);
+        }
+        else
+        {
+            Cursor = Cursors.ScrollN;
+            double dist = Math.Abs(deltaY) - deadZone;
+            double speed = Math.Min(60.0, Math.Pow(dist / 8.0, 1.25));
+            _galleryScrollViewer.ScrollToVerticalOffset(_galleryScrollViewer.VerticalOffset - speed);
+        }
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject? parent) where T : DependencyObject
+    {
+        if (parent == null)
+            return null;
+
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T typedChild)
+                return typedChild;
+
+            var result = FindVisualChild<T>(child);
+            if (result != null)
+                return result;
+        }
+
+        return null;
+    }
+
+    #endregion
 }
