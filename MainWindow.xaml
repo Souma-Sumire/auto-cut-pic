@@ -483,6 +483,15 @@
                                 </MultiBinding>
                             </Grid.Margin>
 
+                            <!-- 内部取景区域（按住平移整个裁切框） -->
+                            <Border
+                                Tag="All"
+                                Background="#01000000"
+                                Cursor="SizeAll"
+                                MouseDown="CropHandle_MouseDown"
+                                MouseMove="CropHandle_MouseMove"
+                                MouseUp="CropHandle_MouseUp" />
+
                             <!-- 外框双层高反差细实线（外黑内白，在任何深浅背景上都极度清晰，穿透鼠标） -->
                             <Border BorderBrush="#80000000" BorderThickness="2" Margin="-1" IsHitTestVisible="False" />
                             <Border BorderBrush="#F0FFFFFF" BorderThickness="1" IsHitTestVisible="False" />
@@ -509,17 +518,171 @@
                                 <Border Grid.Row="1" Grid.ColumnSpan="3" BorderBrush="#50FFFFFF" BorderThickness="0,0,0,1" />
                             </Grid>
 
-                            <!-- PS 风格四角直角折角控制手柄 (穿透鼠标) -->
-                            <Path Data="M 0,16 L 0,0 L 16,0" Stroke="White" StrokeThickness="3" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-1,-1,0,0" IsHitTestVisible="False" />
-                            <Path Data="M 0,0 L 16,0 L 16,16" Stroke="White" StrokeThickness="3" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-1,-1,0" IsHitTestVisible="False" />
-                            <Path Data="M 0,0 L 0,16 L 16,16" Stroke="White" StrokeThickness="3" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="-1,0,0,-1" IsHitTestVisible="False" />
-                            <Path Data="M 16,0 L 16,16 L 0,16" Stroke="White" StrokeThickness="3" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-1,-1" IsHitTestVisible="False" />
+                            <!-- 边框交互拖拽热区（四条边：宽 14px，鼠标放上去呈现双向调节光标） -->
+                            <!-- 顶边框热区 -->
+                            <Border
+                                Tag="Top"
+                                Height="14"
+                                VerticalAlignment="Top"
+                                Margin="16,-7,16,0"
+                                Background="Transparent"
+                                Cursor="SizeNS"
+                                MouseDown="CropHandle_MouseDown"
+                                MouseMove="CropHandle_MouseMove"
+                                MouseUp="CropHandle_MouseUp" />
+                            <!-- 底边框热区 -->
+                            <Border
+                                Tag="Bottom"
+                                Height="14"
+                                VerticalAlignment="Bottom"
+                                Margin="16,0,16,-7"
+                                Background="Transparent"
+                                Cursor="SizeNS"
+                                MouseDown="CropHandle_MouseDown"
+                                MouseMove="CropHandle_MouseMove"
+                                MouseUp="CropHandle_MouseUp" />
+                            <!-- 左边框热区 -->
+                            <Border
+                                Tag="Left"
+                                Width="14"
+                                HorizontalAlignment="Left"
+                                Margin="-7,16,0,16"
+                                Background="Transparent"
+                                Cursor="SizeWE"
+                                MouseDown="CropHandle_MouseDown"
+                                MouseMove="CropHandle_MouseMove"
+                                MouseUp="CropHandle_MouseUp" />
+                            <!-- 右边框热区 -->
+                            <Border
+                                Tag="Right"
+                                Width="14"
+                                HorizontalAlignment="Right"
+                                Margin="0,16,-7,16"
+                                Background="Transparent"
+                                Cursor="SizeWE"
+                                MouseDown="CropHandle_MouseDown"
+                                MouseMove="CropHandle_MouseMove"
+                                MouseUp="CropHandle_MouseUp" />
 
-                            <!-- PS 风格四边中心横竖短线手柄 (穿透鼠标) -->
-                            <Rectangle Width="16" Height="3" Fill="White" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-1,0,0" IsHitTestVisible="False" />
-                            <Rectangle Width="16" Height="3" Fill="White" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,-1" IsHitTestVisible="False" />
-                            <Rectangle Width="3" Height="16" Fill="White" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-1,0,0,0" IsHitTestVisible="False" />
-                            <Rectangle Width="3" Height="16" Fill="White" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,-1,0" IsHitTestVisible="False" />
+                            <!-- PS 风格四角折角视觉与拖拽手柄 -->
+                            <!-- 左上角手柄 -->
+                            <Grid
+                                Tag="TopLeft"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Top"
+                                Margin="-3,-3,0,0"
+                                Width="26"
+                                Height="26"
+                                Cursor="SizeNWSE"
+                                Background="Transparent"
+                                MouseDown="CropHandle_MouseDown"
+                                MouseMove="CropHandle_MouseMove"
+                                MouseUp="CropHandle_MouseUp">
+                                <Path Data="M 2,18 L 2,2 L 18,2" Stroke="White" StrokeThickness="3" IsHitTestVisible="False" />
+                            </Grid>
+                            <!-- 右上角手柄 -->
+                            <Grid
+                                Tag="TopRight"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Margin="0,-3,-3,0"
+                                Width="26"
+                                Height="26"
+                                Cursor="SizeNESW"
+                                Background="Transparent"
+                                MouseDown="CropHandle_MouseDown"
+                                MouseMove="CropHandle_MouseMove"
+                                MouseUp="CropHandle_MouseUp">
+                                <Path Data="M 8,2 L 24,2 L 24,18" Stroke="White" StrokeThickness="3" IsHitTestVisible="False" />
+                            </Grid>
+                            <!-- 左下角手柄 -->
+                            <Grid
+                                Tag="BottomLeft"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Bottom"
+                                Margin="-3,0,0,-3"
+                                Width="26"
+                                Height="26"
+                                Cursor="SizeNESW"
+                                Background="Transparent"
+                                MouseDown="CropHandle_MouseDown"
+                                MouseMove="CropHandle_MouseMove"
+                                MouseUp="CropHandle_MouseUp">
+                                <Path Data="M 2,8 L 2,24 L 18,24" Stroke="White" StrokeThickness="3" IsHitTestVisible="False" />
+                            </Grid>
+                            <!-- 右下角手柄 -->
+                            <Grid
+                                Tag="BottomRight"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
+                                Margin="0,0,-3,-3"
+                                Width="26"
+                                Height="26"
+                                Cursor="SizeNWSE"
+                                Background="Transparent"
+                                MouseDown="CropHandle_MouseDown"
+                                MouseMove="CropHandle_MouseMove"
+                                MouseUp="CropHandle_MouseUp">
+                                <Path Data="M 8,24 L 24,24 L 24,8" Stroke="White" StrokeThickness="3" IsHitTestVisible="False" />
+                            </Grid>
+
+                            <!-- PS 风格四边中心手柄 (可直接按住拖拽调节单方向裁切) -->
+                            <Grid
+                                Tag="Top"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Top"
+                                Margin="0,-5,0,0"
+                                Width="28"
+                                Height="14"
+                                Cursor="SizeNS"
+                                Background="Transparent"
+                                MouseDown="CropHandle_MouseDown"
+                                MouseMove="CropHandle_MouseMove"
+                                MouseUp="CropHandle_MouseUp">
+                                <Rectangle Width="16" Height="3" Fill="White" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" />
+                            </Grid>
+                            <Grid
+                                Tag="Bottom"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Bottom"
+                                Margin="0,0,0,-5"
+                                Width="28"
+                                Height="14"
+                                Cursor="SizeNS"
+                                Background="Transparent"
+                                MouseDown="CropHandle_MouseDown"
+                                MouseMove="CropHandle_MouseMove"
+                                MouseUp="CropHandle_MouseUp">
+                                <Rectangle Width="16" Height="3" Fill="White" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" />
+                            </Grid>
+                            <Grid
+                                Tag="Left"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                Margin="-5,0,0,0"
+                                Width="14"
+                                Height="28"
+                                Cursor="SizeWE"
+                                Background="Transparent"
+                                MouseDown="CropHandle_MouseDown"
+                                MouseMove="CropHandle_MouseMove"
+                                MouseUp="CropHandle_MouseUp">
+                                <Rectangle Width="3" Height="16" Fill="White" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" />
+                            </Grid>
+                            <Grid
+                                Tag="Right"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Margin="0,0,-5,0"
+                                Width="14"
+                                Height="28"
+                                Cursor="SizeWE"
+                                Background="Transparent"
+                                MouseDown="CropHandle_MouseDown"
+                                MouseMove="CropHandle_MouseMove"
+                                MouseUp="CropHandle_MouseUp">
+                                <Rectangle Width="3" Height="16" Fill="White" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" />
+                            </Grid>
 
                             <!-- 模式切换交互胶囊（鼠标点击直接控制裁剪/留白模式） -->
                             <Button

@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     private Point _dragStartPoint;
     private double _dragStartOffsetX;
     private double _dragStartOffsetY;
+    private string _activeHandleTag = "All";
 
     public MainWindow()
     {
@@ -34,7 +35,7 @@ public partial class MainWindow : Window
         Closed += (_, _) => Application.Current?.Shutdown();
     }
 
-    private void PhotoCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+    private void CropHandle_MouseDown(object sender, MouseButtonEventArgs e)
     {
         if (e.LeftButton == MouseButtonState.Pressed && _viewModel.SelectedPhoto != null)
         {
@@ -42,14 +43,16 @@ public partial class MainWindow : Window
                 return;
 
             _isDragging = true;
+            _activeHandleTag = (sender as FrameworkElement)?.Tag?.ToString() ?? "All";
             _dragStartPoint = e.GetPosition(this);
             _dragStartOffsetX = _viewModel.SelectedPhoto.OffsetX;
             _dragStartOffsetY = _viewModel.SelectedPhoto.OffsetY;
             ((UIElement)sender).CaptureMouse();
+            e.Handled = true;
         }
     }
 
-    private void PhotoCanvas_MouseMove(object sender, MouseEventArgs e)
+    private void CropHandle_MouseMove(object sender, MouseEventArgs e)
     {
         if (!_isDragging || _viewModel.SelectedPhoto == null)
             return;
@@ -74,17 +77,51 @@ public partial class MainWindow : Window
         double deltaX = current.X - _dragStartPoint.X;
         double deltaY = current.Y - _dragStartPoint.Y;
 
-        if (geo.ExcessW > 1)
+        bool allowX = _activeHandleTag is "All" or "Left" or "Right" or "TopLeft" or "TopRight" or "BottomLeft" or "BottomRight";
+        bool allowY = _activeHandleTag is "All" or "Top" or "Bottom" or "TopLeft" or "TopRight" or "BottomLeft" or "BottomRight";
+
+        if (allowX && geo.ExcessW > 1)
         {
             double newOx = _dragStartOffsetX + (deltaX / geo.ExcessW);
             photo.OffsetX = Math.Clamp(newOx, -0.5, 0.5);
         }
 
-        if (geo.ExcessH > 1)
+        if (allowY && geo.ExcessH > 1)
         {
             double newOy = _dragStartOffsetY + (deltaY / geo.ExcessH);
             photo.OffsetY = Math.Clamp(newOy, -0.5, 0.5);
         }
+    }
+
+    private void CropHandle_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_isDragging)
+        {
+            _isDragging = false;
+            ((UIElement)sender).ReleaseMouseCapture();
+            e.Handled = true;
+        }
+    }
+
+    private void PhotoCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.LeftButton == MouseButtonState.Pressed && _viewModel.SelectedPhoto != null)
+        {
+            if (_viewModel.SelectedMode == CutMode.Fit)
+                return;
+
+            _isDragging = true;
+            _activeHandleTag = "All";
+            _dragStartPoint = e.GetPosition(this);
+            _dragStartOffsetX = _viewModel.SelectedPhoto.OffsetX;
+            _dragStartOffsetY = _viewModel.SelectedPhoto.OffsetY;
+            ((UIElement)sender).CaptureMouse();
+        }
+    }
+
+    private void PhotoCanvas_MouseMove(object sender, MouseEventArgs e)
+    {
+        CropHandle_MouseMove(sender, e);
     }
 
     private void PhotoCanvas_MouseUp(object sender, MouseButtonEventArgs e)
