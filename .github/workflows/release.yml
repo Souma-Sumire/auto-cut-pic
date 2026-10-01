@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - '[0-9]+.[0-9]+.[0-9]+*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore AutoCutPic.sln
+
+      - name: Run unit tests
+        run: dotnet test AutoCutPic.Tests/AutoCutPic.Tests.csproj -c Release --no-restore
+
+      - name: Publish single-file Windows x64 binary
+        run: >
+          dotnet publish AutoCutPic.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish/
+
+      - name: Create release zip archive
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          Compress-Archive -Path "publish/AutoCutPic.exe" -DestinationPath "AutoCutPic-$tag-win-x64.zip" -Force
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: AutoCutPic ${{ github.ref_name }}
+          files: |
+            AutoCutPic-${{ github.ref_name }}-win-x64.zip
+            publish/AutoCutPic.exe
+          draft: false
+          prerelease: false
+          generate_release_notes: true
