@@ -103,7 +103,11 @@ namespace AutoCutPic.ViewModels
 
         public void Execute(object? parameter) => _execute(parameter);
 
-        public event EventHandler? CanExecuteChanged;
+        public event EventHandler? CanExecuteChanged
+        {
+            add => CommandManager.RequerySuggested += value;
+            remove => CommandManager.RequerySuggested -= value;
+        }
     }
 
     public class MainViewModel : INotifyPropertyChanged
