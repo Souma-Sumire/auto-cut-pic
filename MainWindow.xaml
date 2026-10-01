@@ -445,7 +445,7 @@
                         CornerRadius="2"
                         IsHitTestVisible="False">
                         <TextBlock
-                            Text="{Binding Photos.Count, StringFormat='共 {0} 张照片'}"
+                            Text="{Binding Photos.Count, StringFormat='{}{0} 张'}"
                             FontSize="10"
                             Foreground="#888888" />
                     </Border>
@@ -453,7 +453,7 @@
             </Border>
         </Grid>
 
-        <!--  右侧 Photoshop 属性设置面板  -->
+        <!--  右侧属性设置面板  -->
         <Border
             Grid.Column="1"
             Background="#232323"
@@ -527,7 +527,7 @@
                         Foreground="#888888"
                         FontSize="11"
                         TextWrapping="Wrap"
-                        Text="导出位置: 原图目录下的 Clipped_Photos" />
+                        Text="输出目录: 原图同级 Clipped_Photos" />
                     <TextBlock
                         Margin="0,6,0,0"
                         Foreground="#CCCCCC"
@@ -545,7 +545,7 @@
                                 FontWeight="Bold"
                                 Foreground="#EEEEEE"
                                 VerticalAlignment="Center"
-                                Text="冲印属性面板" />
+                                Text="冲印设置" />
                             <Button
                                 HorizontalAlignment="Right"
                                 VerticalAlignment="Center"
@@ -577,7 +577,7 @@
                                     FontSize="12"
                                     FontWeight="SemiBold"
                                     Foreground="#AAAAAA"
-                                    Text="目标相纸规格 (300 DPI)" />
+                                    Text="相纸规格 (300 DPI)" />
                                 <ComboBox
                                     Margin="0,8,0,8"
                                     DisplayMemberPath="Name"
@@ -585,11 +585,11 @@
                                     SelectedItem="{Binding SelectedSize}"
                                     Height="28" />
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="实际输出: " FontSize="11" Foreground="#666666" />
+                                    <TextBlock Text="输出像素: " FontSize="11" Foreground="#666666" />
                                     <TextBlock Text="{Binding SelectedSize.PixelWidth}" FontSize="11" Foreground="#888888" />
                                     <TextBlock Text="x" FontSize="11" Foreground="#666666" />
                                     <TextBlock Text="{Binding SelectedSize.PixelHeight}" FontSize="11" Foreground="#888888" />
-                                    <TextBlock Text=" px (横竖自适应)" FontSize="11" Foreground="#666666" />
+                                    <TextBlock Text=" px" FontSize="11" Foreground="#666666" />
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -606,8 +606,8 @@
                                     FontSize="12"
                                     FontWeight="SemiBold"
                                     Foreground="#AAAAAA"
-                                    Text="裁切与排版模式" />
-                                <StackPanel Margin="0,10,0,4" Orientation="Horizontal">
+                                    Text="裁切排版" />
+                                <StackPanel Margin="0,8,0,0" Orientation="Horizontal">
                                     <RadioButton
                                         Style="{StaticResource IndustrialRadio}"
                                         Content="裁剪填充 (Fill)"
@@ -617,11 +617,6 @@
                                         Content="留白完整 (Fit)"
                                         IsChecked="{Binding SelectedMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Fit}" />
                                 </StackPanel>
-                                <TextBlock
-                                    Text="Fill 填满相纸且无白边；Fit 呈现相纸纯白留白边框。"
-                                    FontSize="11"
-                                    Foreground="#666666"
-                                    TextWrapping="Wrap" />
                             </StackPanel>
                         </Border>
 
@@ -636,7 +631,7 @@
                                     FontSize="12"
                                     FontWeight="SemiBold"
                                     Foreground="#888888"
-                                    Text="快捷键与操作手势" />
+                                    Text="操作快捷键" />
                                 <Grid Margin="0,8,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
@@ -727,23 +722,17 @@
                         </Border>
 
                         <TextBlock
-                            Text="拖拽照片或文件夹至此开始"
+                            Text="拖拽照片或文件夹至此"
                             FontSize="26"
                             FontWeight="Bold"
                             Foreground="#FFFFFF"
-                            HorizontalAlignment="Center" />
-
-                        <TextBlock
-                            Margin="0,10,0,28"
-                            Text="自动深度递归扫描所有子目录，原生兼容 iOS HEIC、Live Photo 压缩包及全画幅相机原图"
-                            FontSize="13"
-                            Foreground="#888888"
-                            HorizontalAlignment="Center" />
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,28" />
 
                         <StackPanel
                             Orientation="Horizontal"
                             HorizontalAlignment="Center"
-                            Margin="0,0,0,32">
+                            Margin="0,0,0,24">
                             <Button
                                 Width="160"
                                 Height="42"
@@ -784,8 +773,7 @@
 
                         <StackPanel
                             Orientation="Horizontal"
-                            HorizontalAlignment="Center"
-                            Margin="0,0,0,16">
+                            HorizontalAlignment="Center">
                             <Border Background="#252526" BorderBrush="#353535" BorderThickness="1" CornerRadius="3" Padding="8,3" Margin="4,0">
                                 <TextBlock Text="JPG / JPEG" FontSize="11" Foreground="#AAAAAA" />
                             </Border>
@@ -793,7 +781,7 @@
                                 <TextBlock Text="PNG" FontSize="11" Foreground="#AAAAAA" />
                             </Border>
                             <Border Background="#252526" BorderBrush="#353535" BorderThickness="1" CornerRadius="3" Padding="8,3" Margin="4,0">
-                                <TextBlock Text="HEIC (Apple)" FontSize="11" Foreground="#AAAAAA" />
+                                <TextBlock Text="HEIC" FontSize="11" Foreground="#AAAAAA" />
                             </Border>
                             <Border Background="#252526" BorderBrush="#353535" BorderThickness="1" CornerRadius="3" Padding="8,3" Margin="4,0">
                                 <TextBlock Text="ZIP (Live Photo)" FontSize="11" Foreground="#AAAAAA" />
@@ -805,12 +793,6 @@
                                 <TextBlock Text="TIFF / BMP" FontSize="11" Foreground="#AAAAAA" />
                             </Border>
                         </StackPanel>
-
-                        <TextBlock
-                            Text="工业级 300 DPI 严格像素转换  •  基于 Parallel.ForEach 多核极速并发导出"
-                            FontSize="11"
-                            Foreground="#555555"
-                            HorizontalAlignment="Center" />
                     </StackPanel>
                 </Grid>
         </Grid>
