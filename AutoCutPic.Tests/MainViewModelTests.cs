@@ -63,6 +63,58 @@ namespace AutoCutPic.Tests
         }
 
         [Fact]
+        public async Task LoadFiles_WhenFirstPhotoIsMatched_InDefaultDimMode_ShouldSelectFirstActionablePhoto()
+        {
+            // 准备 2 张测试图片：f1 为 6 寸同比例 (300x200)，f2 为正方形需裁切 (200x200)
+            string f1 = Path.Combine(_testDir, "matched.jpg");
+            string f2 = Path.Combine(_testDir, "unmatched.jpg");
+
+            using (var m1 = new MagickImage(MagickColors.Red, 300, 200))
+            {
+                m1.Write(f1);
+            }
+            using (var m2 = new MagickImage(MagickColors.Blue, 200, 200))
+            {
+                m2.Write(f2);
+            }
+
+            var vm = new MainViewModel();
+            Assert.True(vm.DimMatchedPhotos); // 默认淡化免修模式
+
+            await vm.LoadFiles(new[] { f1, f2 });
+
+            // f1 为同比例淡化照片，f2 为非淡化需要构图照片
+            Assert.True(vm.Photos[0].IsAspectMatched);
+            Assert.False(vm.Photos[1].IsAspectMatched);
+
+            // 必须默认自动聚焦选中第一张需要人工构图干预的非淡化照片 f2
+            Assert.NotNull(vm.SelectedPhoto);
+            Assert.Equal(f2, vm.SelectedPhoto.FilePath);
+        }
+
+        [Fact]
+        public void MatchedFilterMode_SwitchFromShowToDim_ShouldSelectFirstActionablePhotoIfCurrentIsMatched()
+        {
+            var p1 = new PhotoViewModel("p1.jpg") { IsAspectMatched = true };
+            var p2 = new PhotoViewModel("p2.jpg") { IsAspectMatched = false };
+
+            var vm = new MainViewModel();
+            vm.Photos.Add(p1);
+            vm.Photos.Add(p2);
+
+            // 在 Show 模式下选中了匹配照片 p1
+            vm.ShowAllPhotos = true;
+            vm.SelectedPhoto = p1;
+            Assert.Equal(p1, vm.SelectedPhoto);
+
+            // 切换为默认淡化模式
+            vm.DimMatchedPhotos = true;
+
+            // 自动跳过淡化照片，切换到第一张非淡化待修照片 p2
+            Assert.Equal(p2, vm.SelectedPhoto);
+        }
+
+        [Fact]
         public void AlignBatch_ShouldSetCorrectClampedOffsets()
         {
             var p1 = new PhotoViewModel("dummy1.jpg") { OffsetX = 0, OffsetY = 0 };

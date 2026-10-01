@@ -210,6 +210,14 @@ namespace AutoCutPic.ViewModels
                     _selectedSize = value;
                     OnPropertyChanged();
                     UpdateAspectMatchForAll();
+                    if (_matchedFilterMode != PhotoFilterMode.Show && SelectedPhoto?.IsAspectMatched == true)
+                    {
+                        var firstNeed = Photos.FirstOrDefault(p => !p.IsAspectMatched);
+                        if (firstNeed != null)
+                        {
+                            SelectedPhoto = firstNeed;
+                        }
+                    }
                 }
             }
         }
@@ -235,7 +243,7 @@ namespace AutoCutPic.ViewModels
                     OnPropertyChanged(nameof(HideMatchedPhotos));
                     OnPropertyChanged(nameof(ShowAllPhotos));
 
-                    if (_matchedFilterMode == PhotoFilterMode.Hide && SelectedPhoto?.IsAspectMatched == true)
+                    if (_matchedFilterMode != PhotoFilterMode.Show && SelectedPhoto?.IsAspectMatched == true)
                     {
                         var firstNeed = Photos.FirstOrDefault(p => !p.IsAspectMatched);
                         if (firstNeed != null)
@@ -699,6 +707,17 @@ namespace AutoCutPic.ViewModels
             OnPropertyChanged(nameof(IsDropOverlayVisible));
             UpdateAspectMatchForAll();
             StatusText = $"已导入 {Photos.Count} 张照片";
+
+            // 在淡化或隐藏免修模式下，优先选中第一张需要构图干预的非淡化照片
+            if (MatchedFilterMode != PhotoFilterMode.Show && (SelectedPhoto == null || SelectedPhoto.IsAspectMatched))
+            {
+                var firstNeed = Photos.FirstOrDefault(p => !p.IsAspectMatched);
+                if (firstNeed != null)
+                {
+                    SelectedPhoto = firstNeed;
+                }
+            }
+
             if (SelectedPhoto == null && Photos.Any())
             {
                 SelectedPhoto = Photos[0];
