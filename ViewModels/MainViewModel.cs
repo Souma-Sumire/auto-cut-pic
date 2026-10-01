@@ -254,9 +254,9 @@ namespace AutoCutPic.ViewModels
                         }
                     });
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // 降级回退保持缩略图展示
+                    System.Diagnostics.Debug.WriteLine($"[MainViewModel] 高清预览加载失败: {photo.FilePath}, 原因: {ex.Message}");
                 }
             }, token);
         }
@@ -347,9 +347,9 @@ namespace AutoCutPic.ViewModels
                     photo.Thumbnail = thumb;
                 });
             }
-            catch
+            catch (Exception ex)
             {
-                // 静默中性降级
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] 缩略图生成失败: {photo.FilePath}, 原因: {ex.Message}");
             }
         }
 

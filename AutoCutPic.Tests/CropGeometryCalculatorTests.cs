@@ -111,5 +111,63 @@ namespace AutoCutPic.Tests
             Assert.Equal(0, fit.MarginLeft);
             Assert.Equal(218, fit.MarginTop);
         }
+
+        [Fact]
+        public void FillCrop_ExtremeAspectRatios_ShouldClampAndNotThrow()
+        {
+            var paper = new PaperDimensions(1795, 1205);
+
+            // 100:1 极端全景宽图
+            var cropUltraWide = CropGeometryCalculator.CalculateFillCrop(10000, 100, paper, 0, 0);
+            Assert.True(cropUltraWide.Width > 0 && cropUltraWide.Width <= 10000);
+            Assert.True(cropUltraWide.Height > 0 && cropUltraWide.Height <= 100);
+            Assert.True(cropUltraWide.X >= 0 && cropUltraWide.X + cropUltraWide.Width <= 10000);
+            Assert.True(cropUltraWide.Y >= 0 && cropUltraWide.Y + cropUltraWide.Height <= 100);
+
+            // 1:100 极端细长纵图
+            var cropUltraTall = CropGeometryCalculator.CalculateFillCrop(100, 10000, paper, 0, 0);
+            Assert.True(cropUltraTall.Width > 0 && cropUltraTall.Width <= 100);
+            Assert.True(cropUltraTall.Height > 0 && cropUltraTall.Height <= 10000);
+            Assert.True(cropUltraTall.X >= 0 && cropUltraTall.X + cropUltraTall.Width <= 100);
+            Assert.True(cropUltraTall.Y >= 0 && cropUltraTall.Y + cropUltraTall.Height <= 10000);
+        }
+
+        [Theory]
+        [InlineData(-100, 500)]
+        [InlineData(500, -100)]
+        [InlineData(0, 0)]
+        public void CalculateFillCrop_WhenInvalidNegativeInputs_ShouldSafelyReturnNonZero(int w, int h)
+        {
+            var paper = new PaperDimensions(1795, 1205);
+            var crop = CropGeometryCalculator.CalculateFillCrop(w, h, paper, 0, 0);
+
+            Assert.True(crop.Width >= 1);
+            Assert.True(crop.Height >= 1);
+            Assert.True(crop.X >= 0);
+            Assert.True(crop.Y >= 0);
+        }
+
+        [Theory]
+        [InlineData(-0.5, 0)]
+        [InlineData(0.5, 1)]
+        public void FillCrop_ExactBoundaryOffsets_ShouldAlignCorrectly(double offset, int expectedAlign)
+        {
+            // 2000 x 1000 照片裁切到 1000 x 1000 相纸 -> cropW = 1000, excessW = 1000
+            var paper = new PaperDimensions(1000, 1000);
+            var crop = CropGeometryCalculator.CalculateFillCrop(2000, 1000, paper, offset, 0);
+
+            Assert.Equal(1000, crop.Width);
+            Assert.Equal(1000, crop.Height);
+            if (expectedAlign == 0)
+            {
+                // 最左端
+                Assert.Equal(0, crop.X);
+            }
+            else
+            {
+                // 最右端
+                Assert.Equal(1000, crop.X);
+            }
+        }
     }
 }

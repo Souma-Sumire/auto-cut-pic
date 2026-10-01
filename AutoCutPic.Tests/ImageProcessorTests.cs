@@ -28,7 +28,10 @@ namespace AutoCutPic.Tests
                 {
                     Directory.Delete(_testDir, true);
                 }
-                catch { }
+                catch (IOException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Test] 临时测试目录删除失败: {ex.Message}");
+                }
             }
         }
 
@@ -118,6 +121,37 @@ namespace AutoCutPic.Tests
 
             var result = await processor.ExportBatchAsync(items, settings, outDir, null, cts.Token);
             Assert.True(result.IsCancelled);
+        }
+
+        [Fact]
+        public async Task ExportBatchAsync_WhenFileCorrupted_ShouldRecordFailureWithoutCrashingBatch()
+        {
+            // 写入一个损坏的无格式垃圾文件
+            string corruptedFile = Path.Combine(_testDir, "corrupted.jpg");
+            await File.WriteAllBytesAsync(corruptedFile, new byte[] { 0x00, 0xFF, 0x12, 0x34, 0x56 });
+
+            var processor = ImageProcessor.Instance;
+            var items = new List<PhotoExportItem>
+            {
+                new(corruptedFile, 0, 0)
+            };
+
+            var settings = new CropSettings
+            {
+                TargetSize = PhotoSize.Inch6,
+                Mode = CutMode.Fill
+            };
+
+            string outDir = Path.Combine(_testDir, "OutCorrupted");
+            var result = await processor.ExportBatchAsync(items, settings, outDir);
+
+            // 断言异常被妥善隔离，不崩溃且记录了失败项
+            Assert.Equal(1, result.TotalCount);
+            Assert.Equal(0, result.SuccessCount);
+            Assert.Equal(1, result.FailedCount);
+            Assert.Single(result.Failures);
+            Assert.Equal(corruptedFile, result.Failures[0].FilePath);
+            Assert.False(string.IsNullOrWhiteSpace(result.Failures[0].ErrorMessage));
         }
     }
 }
