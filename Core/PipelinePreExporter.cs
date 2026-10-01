@@ -159,6 +159,15 @@ namespace AutoCutPic.Core
             _completedSignatures.TryRemove(filePath, out _);
         }
 
+        public void MarkCompleted(IEnumerable<PreExportItem> items)
+        {
+            foreach (var item in items)
+            {
+                string sig = ComputeSignature(item);
+                _completedSignatures[item.FilePath] = sig;
+            }
+        }
+
         public void ClearCache()
         {
             _completedSignatures.Clear();

@@ -959,12 +959,12 @@ namespace AutoCutPic.ViewModels
                 {
                     dispatcher.InvokeAsync(() =>
                     {
-                        PreExportStatusText = ready > 0 ? $"已预导出 {ready}/{total} 张" : "";
+                        PreExportStatusText = (ready > 0 && ready < total) ? $"已预导出 {ready}/{total} 张" : "";
                     });
                 }
                 else
                 {
-                    PreExportStatusText = ready > 0 ? $"已预导出 {ready}/{total} 张" : "";
+                    PreExportStatusText = (ready > 0 && ready < total) ? $"已预导出 {ready}/{total} 张" : "";
                 }
             };
 
@@ -1256,6 +1256,17 @@ namespace AutoCutPic.ViewModels
                 else
                 {
                     StatusText = $"导出完成！全部 {result.SuccessCount} 张照片已成功保存至 Clipped_Photos";
+                    _preExporter.MarkCompleted(Photos.Select(p => new PreExportItem(
+                        p.FilePath,
+                        p.OffsetX,
+                        p.OffsetY,
+                        p.CropScale,
+                        p.Mode,
+                        p.Orientation,
+                        SelectedSize,
+                        p.LastModifiedUtc
+                    )));
+                    PreExportStatusText = "";
                 }
             }
             finally
