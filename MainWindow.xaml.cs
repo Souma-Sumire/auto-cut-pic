@@ -105,6 +105,23 @@ public partial class MainWindow : Window
         bool allowX = _activeHandleTag is "All" or "Left" or "Right" or "TopLeft" or "TopRight" or "BottomLeft" or "BottomRight";
         bool allowY = _activeHandleTag is "All" or "Top" or "Bottom" or "TopLeft" or "TopRight" or "BottomLeft" or "BottomRight";
 
+        // 四角控制点：在单轴固定满版无余量时，智能将斜向拖拽位移有效映射至唯一可动轴，杜绝手势死锁
+        if (_activeHandleTag is "TopLeft" or "TopRight" or "BottomLeft" or "BottomRight")
+        {
+            if (geo.ExcessW <= 1 && geo.ExcessH > 1 && Math.Abs(deltaY) < Math.Abs(deltaX))
+            {
+                // 横向无余量、纵向有余量：若用户斜向或横向拖动，取最大位移幅度驱动纵向
+                double sign = (_activeHandleTag is "TopLeft" or "BottomLeft") ? (deltaX < 0 ? -1.0 : 1.0) : (deltaX > 0 ? 1.0 : -1.0);
+                if (Math.Abs(deltaY) < 2.0) deltaY = Math.Abs(deltaX) * (sign > 0 ? 1.0 : -1.0);
+            }
+            else if (geo.ExcessH <= 1 && geo.ExcessW > 1 && Math.Abs(deltaX) < Math.Abs(deltaY))
+            {
+                // 纵向无余量、横向有余量：若用户斜向或纵向拖动，取最大位移幅度驱动横向
+                double sign = (_activeHandleTag is "TopLeft" or "TopRight") ? (deltaY < 0 ? -1.0 : 1.0) : (deltaY > 0 ? 1.0 : -1.0);
+                if (Math.Abs(deltaX) < 2.0) deltaX = Math.Abs(deltaY) * (sign > 0 ? 1.0 : -1.0);
+            }
+        }
+
         if (allowX && geo.ExcessW > 1)
         {
             double newOx = _dragStartOffsetX + (deltaX / geo.ExcessW);
@@ -141,6 +158,7 @@ public partial class MainWindow : Window
             _dragStartOffsetX = _viewModel.SelectedPhoto.OffsetX;
             _dragStartOffsetY = _viewModel.SelectedPhoto.OffsetY;
             Mouse.Capture((UIElement)sender);
+            e.Handled = true;
         }
     }
 
