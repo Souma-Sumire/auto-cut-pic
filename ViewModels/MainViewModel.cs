@@ -180,6 +180,7 @@ namespace AutoCutPic.ViewModels
 
         public MainViewModel()
         {
+            _selectedSize = Sizes.FirstOrDefault(s => s.Name == "6寸") ?? PhotoSize.Inch6;
             ExportCommand = new RelayCommand(async () => await ExecuteExport());
         }
 
