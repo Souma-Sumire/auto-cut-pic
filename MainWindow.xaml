@@ -1160,8 +1160,8 @@
                                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Enter / Esc" Foreground="#CCCCCC" FontSize="11" />
                                     <TextBlock Grid.Row="1" Grid.Column="1" Text="打开单张精调 / 返回网格" Foreground="#888888" FontSize="11" Margin="8,0,0,0" />
 
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Space / E" Foreground="#CCCCCC" FontSize="11" />
-                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="下一张照片 (Shift+Space/Q 上一张)" Foreground="#888888" FontSize="11" Margin="8,0,0,0" />
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Q / E" Foreground="#CCCCCC" FontSize="11" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="切换上一张 / 下一张照片" Foreground="#888888" FontSize="11" Margin="8,0,0,0" />
 
                                     <TextBlock Grid.Row="3" Grid.Column="0" Text="F 键" Foreground="#CCCCCC" FontSize="11" />
                                     <TextBlock Grid.Row="3" Grid.Column="1" Text="切换裁剪填充 / 留白模式 (Fill/Fit)" Foreground="#888888" FontSize="11" Margin="8,0,0,0" />
