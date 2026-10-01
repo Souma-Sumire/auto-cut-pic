@@ -106,6 +106,18 @@ public partial class MainWindow : Window
 
     private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        bool isCtrl = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
+        bool isShift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
+
+        // 导出操作：必须使用 Ctrl + Enter 组合键，避免单键 Enter 误触导致全量重型批处理
+        if (isCtrl && e.Key == Key.Enter)
+        {
+            _viewModel.ExportCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        // G: 切换批量画廊 / 单张精调视图
         if (e.Key == Key.G)
         {
             _viewModel.ToggleViewMode();
@@ -113,9 +125,21 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_viewModel.CurrentViewMode == ViewMode.Batch)
+        // Esc: 单张精调视图下按 Esc 返回批量画廊
+        if (e.Key == Key.Escape)
         {
-            if ((e.Key == Key.Enter || e.Key == Key.E) && _viewModel.SelectedPhoto != null)
+            if (_viewModel.CurrentViewMode == ViewMode.Single && _viewModel.Photos.Any())
+            {
+                _viewModel.CurrentViewMode = ViewMode.Batch;
+                e.Handled = true;
+                return;
+            }
+        }
+
+        // Enter: 批量画廊视图下，按 Enter 进入单张精调当前选中的照片
+        if (e.Key == Key.Enter)
+        {
+            if (_viewModel.CurrentViewMode == ViewMode.Batch && _viewModel.SelectedPhoto != null)
             {
                 _viewModel.CurrentViewMode = ViewMode.Single;
                 e.Handled = true;
@@ -142,9 +166,6 @@ public partial class MainWindow : Window
         System.Collections.IList? selectedItems = _viewModel.CurrentViewMode == ViewMode.Batch && batchGallery?.SelectedItems?.Count > 0
             ? batchGallery.SelectedItems
             : filmstrip?.SelectedItems;
-
-        bool isCtrl = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
-        bool isShift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
 
         if (selectedItems == null || selectedItems.Count == 0)
         {
@@ -197,11 +218,6 @@ public partial class MainWindow : Window
                     ? CutMode.Fit
                     : CutMode.Fill;
                 _viewModel.SetModeBatch(selectedItems, targetMode);
-                e.Handled = true;
-                break;
-
-            case Key.Enter:
-                _viewModel.ExportCommand.Execute(null);
                 e.Handled = true;
                 break;
         }
