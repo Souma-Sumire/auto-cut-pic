@@ -29,6 +29,8 @@ namespace AutoCutPic.Core
         private readonly IImageProcessor _imageProcessor;
         private readonly string _cacheDirectory;
         private readonly TimeSpan _pollInterval;
+        private readonly TimeSpan _cacheRetention;
+        private readonly long _maxCacheBytes;
         private readonly ConcurrentDictionary<string, string> _completedSignatures = new(); // FilePath -> Signature
         private readonly ConcurrentDictionary<string, string> _cachedFiles = new();        // Signature -> CachedFilePath
 
@@ -44,15 +46,103 @@ namespace AutoCutPic.Core
         /// <summary>后台轮询间隔，默认 1.2 秒。</summary>
         public static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMilliseconds(1200);
 
+        /// <summary>缓存保留时长，超过该时长的文件在启动时清理。</summary>
+        public static readonly TimeSpan DefaultCacheRetention = TimeSpan.FromDays(7);
+
+        /// <summary>缓存目录体积上限，超出后按最旧优先删除（预导出是纯缓存，可随时重建）。</summary>
+        public const long DefaultMaxCacheBytes = 1024L * 1024 * 1024;
+
         public PipelinePreExporter(
             IImageProcessor? imageProcessor = null,
             string? cacheDirectory = null,
-            TimeSpan? pollInterval = null)
+            TimeSpan? pollInterval = null,
+            TimeSpan? cacheRetention = null,
+            long? maxCacheBytes = null)
         {
             _imageProcessor = imageProcessor ?? ImageProcessor.Instance;
             _cacheDirectory = cacheDirectory ?? DefaultCacheDirectory;
             _pollInterval = pollInterval ?? DefaultPollInterval;
+            _cacheRetention = cacheRetention ?? DefaultCacheRetention;
+            _maxCacheBytes = maxCacheBytes ?? DefaultMaxCacheBytes;
             Directory.CreateDirectory(_cacheDirectory);
+
+            // 缓存标识只含参数签名，重新编辑会产生新文件，旧文件必须主动回收，
+            // 否则临时目录会无限增长（实测一天内即可累积数百个文件）。
+            PruneCache();
+        }
+
+        /// <summary>
+        /// 回收过期与超额缓存：先删除超过保留时长的文件与中断残留的 .tmp，
+        /// 若总体积仍超过上限则按最旧优先继续删除。
+        /// 缓存是可重建的派生产物，删除它不影响任何已保存的工作。
+        /// </summary>
+        public void PruneCache()
+        {
+            try
+            {
+                if (!Directory.Exists(_cacheDirectory))
+                {
+                    return;
+                }
+
+                var remaining = new List<FileInfo>();
+                DateTime cutoff = DateTime.UtcNow - _cacheRetention;
+
+                foreach (string file in Directory.EnumerateFiles(_cacheDirectory, "*.tmp"))
+                {
+                    TryDelete(file);
+                }
+
+                foreach (string file in Directory.EnumerateFiles(_cacheDirectory, "*.jpg"))
+                {
+                    var info = new FileInfo(file);
+                    if (info.LastWriteTimeUtc < cutoff)
+                    {
+                        TryDelete(file);
+                    }
+                    else
+                    {
+                        remaining.Add(info);
+                    }
+                }
+
+                long totalBytes = remaining.Sum(f => f.Length);
+                if (totalBytes <= _maxCacheBytes)
+                {
+                    return;
+                }
+
+                foreach (var info in remaining.OrderBy(f => f.LastWriteTimeUtc))
+                {
+                    if (totalBytes <= _maxCacheBytes)
+                    {
+                        break;
+                    }
+
+                    if (TryDelete(info.FullName))
+                    {
+                        totalBytes -= info.Length;
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PipelinePreExporter] 清理预导出缓存失败: {ex.Message}");
+            }
+        }
+
+        private static bool TryDelete(string path)
+        {
+            try
+            {
+                File.Delete(path);
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PipelinePreExporter] 删除缓存文件失败: {path}, 原因: {ex.Message}");
+                return false;
+            }
         }
 
         public void Start(Func<IEnumerable<PreExportItem>> itemsProvider, Func<PreExportItem?> currentItemProvider, Func<bool> isExportingCheck)

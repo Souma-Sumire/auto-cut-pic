@@ -165,5 +165,64 @@ namespace AutoCutPic.Tests
             Assert.Equal(1795u, cachedImage.Width);
             Assert.Equal(1205u, cachedImage.Height);
         }
+
+        [Fact]
+        public void PruneCache_ShouldDropExpiredFilesAndStaleTempFiles()
+        {
+            string cacheDir = Path.Combine(_testDir, "cache_prune_age");
+            Directory.CreateDirectory(cacheDir);
+
+            string fresh = Path.Combine(cacheDir, "fresh.jpg");
+            string expired = Path.Combine(cacheDir, "expired.jpg");
+            string leftover = Path.Combine(cacheDir, "interrupted.jpg.tmp");
+            File.WriteAllBytes(fresh, new byte[1024]);
+            File.WriteAllBytes(expired, new byte[1024]);
+            File.WriteAllBytes(leftover, new byte[16]);
+            File.SetLastWriteTimeUtc(expired, DateTime.UtcNow.AddDays(-30));
+
+            using var exporter = new PipelinePreExporter(
+                ImageProcessor.Instance, cacheDir, FastPoll, cacheRetention: TimeSpan.FromDays(7));
+
+            Assert.True(File.Exists(fresh));
+            Assert.False(File.Exists(expired));   // 超过保留时长
+            Assert.False(File.Exists(leftover));  // 中断残留的临时文件
+        }
+
+        [Fact]
+        public void PruneCache_WhenOverSizeLimit_ShouldDeleteOldestFirst()
+        {
+            string cacheDir = Path.Combine(_testDir, "cache_prune_size");
+            Directory.CreateDirectory(cacheDir);
+
+            // 4 个 1KB 文件，上限 2.5KB -> 必须按最旧优先删到 2 个
+            for (int i = 0; i < 4; i++)
+            {
+                string path = Path.Combine(cacheDir, $"c{i}.jpg");
+                File.WriteAllBytes(path, new byte[1024]);
+                File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(-10 + i));
+            }
+
+            using var exporter = new PipelinePreExporter(
+                ImageProcessor.Instance, cacheDir, FastPoll,
+                cacheRetention: TimeSpan.FromDays(3650), maxCacheBytes: 2560);
+
+            string[] remaining = Directory.GetFiles(cacheDir, "*.jpg");
+            Assert.Equal(2, remaining.Length);
+            Assert.False(File.Exists(Path.Combine(cacheDir, "c0.jpg"))); // 最旧的两个被回收
+            Assert.False(File.Exists(Path.Combine(cacheDir, "c1.jpg")));
+            Assert.True(File.Exists(Path.Combine(cacheDir, "c2.jpg")));
+            Assert.True(File.Exists(Path.Combine(cacheDir, "c3.jpg")));
+        }
+
+        [Fact]
+        public void PruneCache_ShouldBeSafeOnMissingDirectory()
+        {
+            string cacheDir = Path.Combine(_testDir, "cache_missing", "nested");
+
+            using var exporter = new PipelinePreExporter(ImageProcessor.Instance, cacheDir, FastPoll);
+
+            Assert.True(Directory.Exists(cacheDir)); // 构造时创建，且清理不抛异常
+            Assert.Empty(Directory.GetFiles(cacheDir));
+        }
     }
 }
