@@ -39,6 +39,18 @@ public partial class MainWindow : Window
     private DateTime _middlePressTime;
     private ScrollViewer? _galleryScrollViewer;
 
+    // 响应式布局：宽窗口下属性面板停靠右侧；窄窗口下退化为可收起的右侧抽屉，
+    // 顶部命令栏 / 状态栏 / 平铺工具栏一律采用流式折行，杜绝小窗口控件重叠。
+    private const double CompactLayoutThreshold = 1120.0;
+    private const double DockedPanelWidth = 320.0;
+    private const double CompactPanelMinWidth = 260.0;
+    private const double CompactPanelMaxWidth = 340.0;
+    private const double CompactPanelWidthRatio = 0.86;
+
+    private bool _isCompactLayout;
+    private bool _isPropertyPanelOpen = true;
+    private bool _layoutInitialized;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -51,20 +63,29 @@ public partial class MainWindow : Window
         PreviewMouseDown += MainWindow_PreviewMouseDown;
         PreviewMouseUp += MainWindow_PreviewMouseUp;
         Deactivated += (_, _) => StopAutoScroll();
+        SizeChanged += MainWindow_SizeChanged;
 
         Loaded += async (_, _) =>
         {
             Focus();
+            UpdateResponsiveLayout();
+            ApplyViewModeLayout();
+
+            // 启动时绝不自动载入上次的工作区：仅探测草稿是否存在，由用户显式决定是否恢复。
             if (!_viewModel.Photos.Any())
             {
-                await _viewModel.TryAutoRestoreLastSessionAsync();
+                await _viewModel.RefreshRecoverableDraftAsync();
             }
             ScrollSelectedPhotoIntoView();
         };
         _viewModel.PropertyChanged += (_, args) =>
         {
-            if (args.PropertyName == nameof(MainViewModel.SelectedPhoto) ||
-                args.PropertyName == nameof(MainViewModel.CurrentViewMode))
+            if (args.PropertyName == nameof(MainViewModel.CurrentViewMode))
+            {
+                ApplyViewModeLayout();
+                ScrollSelectedPhotoIntoView();
+            }
+            else if (args.PropertyName == nameof(MainViewModel.SelectedPhoto))
             {
                 ScrollSelectedPhotoIntoView();
             }
@@ -76,6 +97,92 @@ public partial class MainWindow : Window
         };
         Closed += (_, _) => Application.Current?.Shutdown();
     }
+
+    #region 响应式布局（宽窗口停靠属性面板 / 窄窗口抽屉 + 流式控件）
+
+    private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (e.WidthChanged || !_layoutInitialized)
+        {
+            UpdateResponsiveLayout();
+        }
+    }
+
+    /// <summary>
+    /// 依据当前窗口宽度切换"宽布局 / 紧凑布局"，紧凑布局下属性面板改为覆盖式抽屉。
+    /// </summary>
+    private void UpdateResponsiveLayout()
+    {
+        _layoutInitialized = true;
+
+        bool compact = ActualWidth < CompactLayoutThreshold;
+        if (compact != _isCompactLayout)
+        {
+            _isCompactLayout = compact;
+            // 宽布局始终展示停靠面板；进入紧凑布局时默认收起，把宽度全部让给工作区。
+            _isPropertyPanelOpen = !compact;
+        }
+
+        PropertyPanelToggle.Visibility = compact ? Visibility.Visible : Visibility.Collapsed;
+        ApplyPropertyPanelLayout();
+    }
+
+    private void ApplyPropertyPanelLayout()
+    {
+        bool drawer = _isCompactLayout;
+
+        PropertyDockSpacer.Width = drawer ? new GridLength(0) : new GridLength(DockedPanelWidth);
+
+        PropertyPanel.Width = drawer
+            ? Math.Clamp(ActualWidth * CompactPanelWidthRatio, CompactPanelMinWidth, CompactPanelMaxWidth)
+            : DockedPanelWidth;
+
+        bool panelVisible = !drawer || _isPropertyPanelOpen;
+        PropertyPanel.Visibility = panelVisible ? Visibility.Visible : Visibility.Collapsed;
+        PropertyScrim.Visibility = drawer && _isPropertyPanelOpen ? Visibility.Visible : Visibility.Collapsed;
+        PropertyPanelCloseButton.Visibility = drawer ? Visibility.Visible : Visibility.Collapsed;
+        PropertyPanelToggle.Content = _isPropertyPanelOpen ? "收起属性" : "属性面板";
+    }
+
+    /// <summary>
+    /// 单张精调：大图工作台与平铺视图并存；平铺总览：收起工作台，把纵向空间全部让给图库。
+    /// </summary>
+    private void ApplyViewModeLayout()
+    {
+        bool single = _viewModel.CurrentViewMode == ViewMode.Single;
+
+        ViewportRow.Height = single ? new GridLength(5, GridUnitType.Star) : new GridLength(0);
+        ViewportRow.MinHeight = single ? 150 : 0;
+
+        GallerySplitterRow.Height = single ? new GridLength(5) : new GridLength(0);
+
+        GalleryRow.Height = single ? new GridLength(3, GridUnitType.Star) : new GridLength(1, GridUnitType.Star);
+        GalleryRow.MinHeight = single ? 150 : 0;
+
+        MainViewportHost.Visibility = single ? Visibility.Visible : Visibility.Collapsed;
+        WorkspaceSplitter.Visibility = single ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void TogglePropertyPanel_Click(object sender, RoutedEventArgs e)
+    {
+        _isPropertyPanelOpen = !_isPropertyPanelOpen;
+        ApplyPropertyPanelLayout();
+    }
+
+    private void ClosePropertyPanel_Click(object sender, RoutedEventArgs e)
+    {
+        _isPropertyPanelOpen = false;
+        ApplyPropertyPanelLayout();
+    }
+
+    private void PropertyScrim_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _isPropertyPanelOpen = false;
+        ApplyPropertyPanelLayout();
+        e.Handled = true;
+    }
+
+    #endregion
 
     private void CropHandle_MouseDown(object sender, MouseButtonEventArgs e)
     {
@@ -419,6 +526,15 @@ public partial class MainWindow : Window
         if (isCtrl && (key == Key.D0 || key == Key.NumPad0))
         {
             _viewModel.GalleryCardWidth = 130.0;
+            e.Handled = true;
+            return;
+        }
+
+        // Esc: 优先收起紧凑布局下的属性抽屉
+        if (key == Key.Escape && _isCompactLayout && _isPropertyPanelOpen)
+        {
+            _isPropertyPanelOpen = false;
+            ApplyPropertyPanelLayout();
             e.Handled = true;
             return;
         }
