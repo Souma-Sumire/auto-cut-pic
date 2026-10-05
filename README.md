@@ -40,6 +40,10 @@ dotnet run
 # 测试
 dotnet test
 
-# 打包单文件独立程序
-dotnet publish AutoCutPic.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/
+# 打包单文件（内置 .NET 运行时，无需安装环境）
+dotnet publish AutoCutPic.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o publish/
+
+# 打包（不含运行库，需预装 .NET 8 Desktop Runtime）
+dotnet publish AutoCutPic.csproj -c Release -r win-x64 --self-contained false -o publish/
 ```
+
