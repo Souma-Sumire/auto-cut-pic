@@ -1197,22 +1197,41 @@ namespace AutoCutPic.ViewModels
             _preExporter = new PipelinePreExporter(_imageProcessor);
             _preExporter.PreExportProgressChanged += (ready, total) =>
             {
+                string text = total <= 0 || ready <= 0
+                    ? ""
+                    : ready >= total
+                        ? $"预导出就绪 {ready}/{total} 张"
+                        : $"已预导出 {ready}/{total} 张";
+
                 var dispatcher = System.Windows.Application.Current?.Dispatcher;
                 if (dispatcher != null)
                 {
-                    dispatcher.InvokeAsync(() =>
-                    {
-                        PreExportStatusText = (ready > 0 && ready < total) ? $"已预导出 {ready}/{total} 张" : "";
-                    });
+                    dispatcher.InvokeAsync(() => PreExportStatusText = text);
                 }
                 else
                 {
-                    PreExportStatusText = (ready > 0 && ready < total) ? $"已预导出 {ready}/{total} 张" : "";
+                    PreExportStatusText = text;
                 }
             };
 
             _preExporter.Start(
-                () => Photos.Select(p => new PreExportItem(
+                SnapshotPreExportItems,
+                SnapshotCurrentPreExportItem,
+                () => IsExporting
+            );
+        }
+
+        /// <summary>
+        /// 在 UI 线程上对照片集合做快照，供后台预导出线程使用。
+        /// <para>
+        /// 后台直接枚举 <see cref="Photos"/> 会与批量导入时 UI 线程的分批 Add 冲突，
+        /// 抛出"集合已被修改"并让预导出循环失效，因此必须回到 UI 线程取快照。
+        /// </para>
+        /// </summary>
+        private IReadOnlyList<PreExportItem> SnapshotPreExportItems()
+        {
+            return RunOnUiThread(() => (IReadOnlyList<PreExportItem>)Photos
+                .Select(p => new PreExportItem(
                     p.FilePath,
                     p.OffsetX,
                     p.OffsetY,
@@ -1220,20 +1239,38 @@ namespace AutoCutPic.ViewModels
                     p.Mode,
                     p.Orientation,
                     SelectedSize,
-                    p.LastModifiedUtc
-                )).ToList(),
-                () => SelectedPhoto != null ? new PreExportItem(
-                    SelectedPhoto.FilePath,
-                    SelectedPhoto.OffsetX,
-                    SelectedPhoto.OffsetY,
-                    SelectedPhoto.CropScale,
-                    SelectedPhoto.Mode,
-                    SelectedPhoto.Orientation,
-                    SelectedSize,
-                    SelectedPhoto.LastModifiedUtc
-                ) : null,
-                () => IsExporting
-            );
+                    p.LastModifiedUtc))
+                .ToList());
+        }
+
+        private PreExportItem? SnapshotCurrentPreExportItem()
+        {
+            return RunOnUiThread(() =>
+            {
+                var photo = SelectedPhoto;
+                return photo == null
+                    ? (PreExportItem?)null
+                    : new PreExportItem(
+                        photo.FilePath,
+                        photo.OffsetX,
+                        photo.OffsetY,
+                        photo.CropScale,
+                        photo.Mode,
+                        photo.Orientation,
+                        SelectedSize,
+                        photo.LastModifiedUtc);
+            });
+        }
+
+        private static T RunOnUiThread<T>(Func<T> factory)
+        {
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher == null || dispatcher.CheckAccess())
+            {
+                return factory();
+            }
+
+            return dispatcher.Invoke(factory);
         }
 
         private bool _isInitialLoading;

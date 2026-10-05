@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AutoCutPic.Core.Abstractions;
 using AutoCutPic.Core.Calculators;
+using ImageMagick;
 
 namespace AutoCutPic.Core
 {
@@ -27,6 +28,7 @@ namespace AutoCutPic.Core
     {
         private readonly IImageProcessor _imageProcessor;
         private readonly string _cacheDirectory;
+        private readonly TimeSpan _pollInterval;
         private readonly ConcurrentDictionary<string, string> _completedSignatures = new(); // FilePath -> Signature
         private readonly ConcurrentDictionary<string, string> _cachedFiles = new();        // Signature -> CachedFilePath
 
@@ -39,10 +41,17 @@ namespace AutoCutPic.Core
         public static string DefaultCacheDirectory =>
             Path.Combine(Path.GetTempPath(), "AutoCutPic", "PreExportCache");
 
-        public PipelinePreExporter(IImageProcessor? imageProcessor = null, string? cacheDirectory = null)
+        /// <summary>后台轮询间隔，默认 1.2 秒。</summary>
+        public static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMilliseconds(1200);
+
+        public PipelinePreExporter(
+            IImageProcessor? imageProcessor = null,
+            string? cacheDirectory = null,
+            TimeSpan? pollInterval = null)
         {
             _imageProcessor = imageProcessor ?? ImageProcessor.Instance;
             _cacheDirectory = cacheDirectory ?? DefaultCacheDirectory;
+            _pollInterval = pollInterval ?? DefaultPollInterval;
             Directory.CreateDirectory(_cacheDirectory);
         }
 
@@ -59,7 +68,7 @@ namespace AutoCutPic.Core
                 {
                     try
                     {
-                        await Task.Delay(1200, token);
+                        await Task.Delay(_pollInterval, token);
                     }
                     catch (OperationCanceledException)
                     {
@@ -67,87 +76,108 @@ namespace AutoCutPic.Core
                     }
 
                     if (token.IsCancellationRequested) break;
-                    if (isExportingCheck()) continue;
 
-                    var items = itemsProvider()?.ToList();
-                    if (items == null || items.Count == 0) continue;
-
-                    var current = currentItemProvider();
-                    int currentIndex = current != null ? items.FindIndex(i => i.FilePath == current.FilePath) : -1;
-
-                    // 寻找符合安全定稿条件的照片（需静置离开或无修改超过 5 秒）：
-                    // 1. 优先预导出在当前照片之前的照片 (i < currentIndex)
-                    // 2. 若前面均已就绪，且用户在当前照片停留超过 5 秒未做修改，预导出当前照片 (i == currentIndex)
-                    // 3. 若当前及之前均已就绪，预导出后续已静置满 5 秒的照片 (i > currentIndex)
-                    PreExportItem? candidate = null;
-                    string candidateSig = string.Empty;
-
-                    DateTime now = DateTime.UtcNow;
-                    const double settleThresholdSeconds = 5.0;
-
-                    // 阶段 1：当前之前的已离开照片
-                    int scanLimit = currentIndex >= 0 ? Math.Min(currentIndex, items.Count) : items.Count;
-                    for (int i = 0; i < scanLimit; i++)
+                    // 单次轮询的任何异常（例如 UI 线程正在批量导入导致集合枚举冲突）
+                    // 都不得终止后台循环，否则预导出会在整个会话内静默失效。
+                    try
                     {
-                        var item = items[i];
-                        if ((now - item.LastModifiedUtc).TotalSeconds < settleThresholdSeconds) continue;
-
-                        string sig = ComputeSignature(item);
-                        if (!_completedSignatures.TryGetValue(item.FilePath, out var doneSig) || doneSig != sig)
-                        {
-                            candidate = item;
-                            candidateSig = sig;
-                            break;
-                        }
+                        await PollOnceAsync(itemsProvider, currentItemProvider, isExportingCheck, token);
                     }
-
-                    // 阶段 2：当前照片本身（要求停留在上面且 5 秒内未修改）
-                    if (candidate == null && currentIndex >= 0 && currentIndex < items.Count)
+                    catch (OperationCanceledException)
                     {
-                        var item = items[currentIndex];
-                        if ((now - item.LastModifiedUtc).TotalSeconds >= settleThresholdSeconds)
-                        {
-                            string sig = ComputeSignature(item);
-                            if (!_completedSignatures.TryGetValue(item.FilePath, out var doneSig) || doneSig != sig)
-                            {
-                                candidate = item;
-                                candidateSig = sig;
-                            }
-                        }
+                        break;
                     }
-
-                    // 阶段 3：当前之后的照片（若已翻回前面，后面的已静置照片也按序预导出）
-                    if (candidate == null && currentIndex >= 0 && currentIndex + 1 < items.Count)
+                    catch (Exception ex)
                     {
-                        for (int i = currentIndex + 1; i < items.Count; i++)
-                        {
-                            var item = items[i];
-                            if ((now - item.LastModifiedUtc).TotalSeconds < settleThresholdSeconds) continue;
-
-                            string sig = ComputeSignature(item);
-                            if (!_completedSignatures.TryGetValue(item.FilePath, out var doneSig) || doneSig != sig)
-                            {
-                                candidate = item;
-                                candidateSig = sig;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (candidate != null && !string.IsNullOrEmpty(candidateSig))
-                    {
-                        await ProcessCandidateAsync(candidate, candidateSig, token);
-
-                        // 统计并派发已预导出进度
-                        int readyCount = items.Count(it =>
-                        {
-                            string s = ComputeSignature(it);
-                            return _completedSignatures.TryGetValue(it.FilePath, out var ds) && ds == s;
-                        });
-                        PreExportProgressChanged?.Invoke(readyCount, items.Count);
+                        System.Diagnostics.Debug.WriteLine($"[PipelinePreExporter] 预导出轮询失败（已跳过本轮）: {ex.Message}");
                     }
                 }
             }, token);
+        }
+
+        private async Task PollOnceAsync(
+            Func<IEnumerable<PreExportItem>> itemsProvider,
+            Func<PreExportItem?> currentItemProvider,
+            Func<bool> isExportingCheck,
+            CancellationToken token)
+        {
+            if (isExportingCheck()) return;
+
+            var items = itemsProvider()?.ToList();
+            if (items == null || items.Count == 0) return;
+
+            var current = currentItemProvider();
+            int currentIndex = current != null ? items.FindIndex(i => i.FilePath == current.FilePath) : -1;
+
+            PreExportItem? candidate = null;
+            string candidateSig = string.Empty;
+
+            DateTime now = DateTime.UtcNow;
+            const double settleThresholdSeconds = 5.0;
+
+            // 阶段 1：当前之前的已离开照片
+            int scanLimit = currentIndex >= 0 ? Math.Min(currentIndex, items.Count) : items.Count;
+            for (int i = 0; i < scanLimit; i++)
+            {
+                var item = items[i];
+                if ((now - item.LastModifiedUtc).TotalSeconds < settleThresholdSeconds) continue;
+
+                string sig = ComputeSignature(item);
+                if (!_completedSignatures.TryGetValue(item.FilePath, out var doneSig) || doneSig != sig)
+                {
+                    candidate = item;
+                    candidateSig = sig;
+                    break;
+                }
+            }
+
+            // 阶段 2：当前照片本身（要求停留在上面且 5 秒内未修改）
+            if (candidate == null && currentIndex >= 0 && currentIndex < items.Count)
+            {
+                var item = items[currentIndex];
+                if ((now - item.LastModifiedUtc).TotalSeconds >= settleThresholdSeconds)
+                {
+                    string sig = ComputeSignature(item);
+                    if (!_completedSignatures.TryGetValue(item.FilePath, out var doneSig) || doneSig != sig)
+                    {
+                        candidate = item;
+                        candidateSig = sig;
+                    }
+                }
+            }
+
+            // 阶段 3：当前之后的照片（若已翻回前面，后面的已静置照片也按序预导出）
+            if (candidate == null && currentIndex >= 0 && currentIndex + 1 < items.Count)
+            {
+                for (int i = currentIndex + 1; i < items.Count; i++)
+                {
+                    var item = items[i];
+                    if ((now - item.LastModifiedUtc).TotalSeconds < settleThresholdSeconds) continue;
+
+                    string sig = ComputeSignature(item);
+                    if (!_completedSignatures.TryGetValue(item.FilePath, out var doneSig) || doneSig != sig)
+                    {
+                        candidate = item;
+                        candidateSig = sig;
+                        break;
+                    }
+                }
+            }
+
+            if (candidate == null || string.IsNullOrEmpty(candidateSig))
+            {
+                return;
+            }
+
+            await ProcessCandidateAsync(candidate, candidateSig, token);
+
+            // 统计并派发已预导出进度
+            int readyCount = items.Count(it =>
+            {
+                string s = ComputeSignature(it);
+                return _completedSignatures.TryGetValue(it.FilePath, out var ds) && ds == s;
+            });
+            PreExportProgressChanged?.Invoke(readyCount, items.Count);
         }
 
         public void Stop()
@@ -244,8 +274,10 @@ namespace AutoCutPic.Core
 
                     token.ThrowIfCancellationRequested();
 
+                    // 显式指定 JPEG：临时文件名以 .tmp 结尾，Magick 无法从扩展名推断格式时
+                    // 会退回源图格式，导致 PNG/HEIC/BMP 源被缓存成错误容器、导出后谎称 .jpg
                     string tmp = outPath + ".tmp";
-                    processed.Write(tmp);
+                    processed.Write(tmp, MagickFormat.Jpeg);
                     File.Move(tmp, outPath, true);
                 }, token);
 
@@ -256,9 +288,10 @@ namespace AutoCutPic.Core
             {
                 // 取消时不记录
             }
-            catch
+            catch (Exception ex)
             {
-                // 单张失败忽略
+                // 单张失败忽略，但保留诊断信息
+                System.Diagnostics.Debug.WriteLine($"[PipelinePreExporter] 预导出失败: {item.FilePath}, 原因: {ex.Message}");
             }
         }
 
