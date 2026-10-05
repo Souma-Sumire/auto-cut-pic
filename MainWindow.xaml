@@ -1233,13 +1233,7 @@
                                     Foreground="#555555"
                                     FontSize="11"
                                     VerticalAlignment="Center"
-                                    Margin="0,3,4,3" />
-                                <TextBlock
-                                    Text="·"
-                                    Foreground="#3A3A3A"
-                                    FontSize="11"
-                                    VerticalAlignment="Center"
-                                    Margin="0,3,4,3" />
+                                    Margin="0,3,14,3" />
                                 <TextBlock
                                     Text="{Binding NeedAdjustCount, StringFormat='{}{0} 张需调整'}"
                                     Foreground="#B0B0B0"
@@ -1539,34 +1533,6 @@
                                                             </MultiBinding>
                                                         </Path.Data>
                                                     </Path>
-
-                                                    <!-- 留白模式状态微标签 -->
-                                                    <Border
-                                                        HorizontalAlignment="Right"
-                                                        VerticalAlignment="Top"
-                                                        Margin="6"
-                                                        Background="#CC1F1F1F"
-                                                        BorderBrush="#44FFFFFF"
-                                                        BorderThickness="1"
-                                                        CornerRadius="0"
-                                                        Padding="4,1"
-                                                        IsHitTestVisible="False">
-                                                        <Border.Style>
-                                                            <Style TargetType="Border">
-                                                                <Setter Property="Visibility" Value="Collapsed" />
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding Mode}" Value="Fit">
-                                                                        <Setter Property="Visibility" Value="Visible" />
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Border.Style>
-                                                        <TextBlock
-                                                            Text="留白"
-                                                            FontSize="9"
-                                                            Foreground="#CCCCCC"
-                                                            FontWeight="Medium" />
-                                                    </Border>
                                                 </Grid>
                                             </Border>
 
@@ -2006,13 +1972,6 @@
             BorderThickness="0,1,0,0"
             Padding="12,5">
             <WrapPanel x:Name="StatusBar">
-                <Ellipse
-                    Width="6"
-                    Height="6"
-                    Fill="#4EC9B0"
-                    VerticalAlignment="Center"
-                    Margin="0,3,6,3"
-                    Visibility="{Binding HasPhotos, Converter={StaticResource BoolToVis}}" />
                 <TextBlock
                     Text="{Binding StatusText}"
                     Foreground="#CFCFCF"
