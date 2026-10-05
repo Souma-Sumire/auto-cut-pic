@@ -32,6 +32,25 @@ namespace AutoCutPic.ViewModels
         Batch
     }
 
+    /// <summary>相邻照片切换的结果，用于在到达边界时提示用户而不是绕回另一端。</summary>
+    public enum PhotoNavigationStatus
+    {
+        /// <summary>没有照片可切换。</summary>
+        Empty,
+
+        /// <summary>已切换到目标照片。</summary>
+        Moved,
+
+        /// <summary>已经是第一张。</summary>
+        ReachedFirst,
+
+        /// <summary>已经是最后一张。</summary>
+        ReachedLast,
+
+        /// <summary>该方向剩余的均为免修照片，没有需要调整的照片。</summary>
+        NoActionableInDirection
+    }
+
     public class PhotoViewModel : INotifyPropertyChanged
     {
         private double _fillOffsetX;
@@ -1049,6 +1068,66 @@ namespace AutoCutPic.ViewModels
 
         public void ToggleViewMode() =>
             CurrentViewMode = CurrentViewMode == ViewMode.Single ? ViewMode.Batch : ViewMode.Single;
+
+        /// <summary>
+        /// 按 <paramref name="direction"/>（-1 上一张 / +1 下一张）切换照片。
+        /// <para>
+        /// 严格单向查找，<b>绝不绕回另一端</b>：已在首/尾时返回边界状态并写入
+        /// <see cref="StatusText"/> 提示用户；淡化/隐藏免修模式下若该方向只剩免修照片，
+        /// 同样停止并给出提示。
+        /// </para>
+        /// </summary>
+        public PhotoNavigationStatus NavigateRelative(int direction)
+        {
+            if (Photos.Count == 0)
+            {
+                return PhotoNavigationStatus.Empty;
+            }
+
+            int step = direction >= 0 ? 1 : -1;
+            int current = SelectedPhoto != null ? Photos.IndexOf(SelectedPhoto) : -1;
+
+            if (current < 0)
+            {
+                SelectedPhoto = Photos[0];
+                return PhotoNavigationStatus.Moved;
+            }
+
+            bool skipMatched = _matchedFilterMode != PhotoFilterMode.Show;
+            for (int i = current + step; i >= 0 && i < Photos.Count; i += step)
+            {
+                if (skipMatched && Photos[i].IsAspectMatched)
+                {
+                    continue;
+                }
+
+                SelectedPhoto = Photos[i];
+                return PhotoNavigationStatus.Moved;
+            }
+
+            bool atBoundary = step > 0 ? current >= Photos.Count - 1 : current <= 0;
+            if (atBoundary)
+            {
+                PhotoNavigationStatus boundary = step > 0
+                    ? PhotoNavigationStatus.ReachedLast
+                    : PhotoNavigationStatus.ReachedFirst;
+                StatusText = DescribeNavigationStatus(boundary);
+                return boundary;
+            }
+
+            StatusText = DescribeNavigationStatus(PhotoNavigationStatus.NoActionableInDirection);
+            return PhotoNavigationStatus.NoActionableInDirection;
+        }
+
+        /// <summary>把导航状态转成给用户看的提示文案（无提示时返回空串）。</summary>
+        public static string DescribeNavigationStatus(PhotoNavigationStatus status) => status switch
+        {
+            PhotoNavigationStatus.ReachedFirst => "已经是第一张照片了",
+            PhotoNavigationStatus.ReachedLast => "已经是最后一张照片了",
+            PhotoNavigationStatus.NoActionableInDirection => "该方向已经没有需要调整的照片了",
+            PhotoNavigationStatus.Empty => "还没有导入任何照片",
+            _ => ""
+        };
 
         public void ResetCrop(System.Collections.IList? targetPhotos = null)
         {

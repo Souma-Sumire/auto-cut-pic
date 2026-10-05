@@ -2131,6 +2131,37 @@
             </WrapPanel>
         </Border>
 
+        <!--  边界提示浮层（切换首/尾照片时短暂浮现，不拦截任何输入）  -->
+        <Border
+            x:Name="ToastHost"
+            Grid.Row="0"
+            Grid.RowSpan="3"
+            Panel.ZIndex="600"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Bottom"
+            Margin="0,0,0,72"
+            Padding="18,9"
+            Background="#F02A2A2A"
+            BorderBrush="#4E4E4E"
+            BorderThickness="1"
+            CornerRadius="6"
+            Visibility="Collapsed"
+            IsHitTestVisible="False">
+            <Border.Effect>
+                <DropShadowEffect
+                    BlurRadius="16"
+                    ShadowDepth="2"
+                    Direction="270"
+                    Color="#000000"
+                    Opacity="0.6" />
+            </Border.Effect>
+            <TextBlock
+                x:Name="ToastText"
+                Foreground="#F0F0F0"
+                FontSize="12"
+                FontWeight="Medium" />
+        </Border>
+
         <!-- ═══════════════════════════════════════════════════════════════
              全屏导入引导层 (当未导入照片时呈现)
              ═══════════════════════════════════════════════════════════════ -->

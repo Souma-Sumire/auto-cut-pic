@@ -52,11 +52,23 @@ public partial class MainWindow : Window
     private bool _isPropertyPanelOpen = true;
     private bool _layoutInitialized;
 
+    // 边界提示浮层（切换首/尾照片时短暂浮现）
+    private readonly System.Windows.Threading.DispatcherTimer _toastTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(1600)
+    };
+
     public MainWindow()
     {
         InitializeComponent();
         _viewModel = new MainViewModel();
         DataContext = _viewModel;
+
+        _toastTimer.Tick += (_, _) =>
+        {
+            _toastTimer.Stop();
+            ToastHost.Visibility = Visibility.Collapsed;
+        };
 
         AllowDrop = true;
         Drop += MainWindow_Drop;
@@ -680,35 +692,28 @@ public partial class MainWindow : Window
 
     private void SelectRelativePhoto(int direction)
     {
-        if (!_viewModel.Photos.Any())
+        var status = _viewModel.NavigateRelative(direction);
+        if (status == PhotoNavigationStatus.Moved)
+        {
+            ScrollSelectedPhotoIntoView();
             return;
-
-        int currentIndex = _viewModel.SelectedPhoto != null ? _viewModel.Photos.IndexOf(_viewModel.SelectedPhoto) : 0;
-        int step = direction > 0 ? 1 : -1;
-
-        if (_viewModel.MatchedFilterMode != MainViewModel.PhotoFilterMode.Show && _viewModel.Photos.Any(p => !p.IsAspectMatched))
-        {
-            // 当开启淡化或隐藏跳过开关时，向目标方向搜寻下一个未匹配同比例（需要裁切调整）的照片
-            int count = _viewModel.Photos.Count;
-            int targetIndex = currentIndex;
-            for (int i = 1; i <= count; i++)
-            {
-                int candidate = (currentIndex + (step * i) % count + count) % count;
-                if (!_viewModel.Photos[candidate].IsAspectMatched)
-                {
-                    targetIndex = candidate;
-                    break;
-                }
-            }
-            _viewModel.SelectedPhoto = _viewModel.Photos[targetIndex];
-        }
-        else
-        {
-            int newIndex = Math.Clamp(currentIndex + step, 0, _viewModel.Photos.Count - 1);
-            _viewModel.SelectedPhoto = _viewModel.Photos[newIndex];
         }
 
-        ScrollSelectedPhotoIntoView();
+        // 到达边界或该方向已无待修照片：明确提示用户，而不是绕回另一端
+        ShowToast(MainViewModel.DescribeNavigationStatus(status));
+    }
+
+    private void ShowToast(string message)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            return;
+        }
+
+        ToastText.Text = message;
+        ToastHost.Visibility = Visibility.Visible;
+        _toastTimer.Stop();
+        _toastTimer.Start();
     }
 
     private void ScrollSelectedPhotoIntoView()
