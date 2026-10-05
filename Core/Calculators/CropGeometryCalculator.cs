@@ -40,8 +40,40 @@ namespace AutoCutPic.Core.Calculators
                 : new PaperDimensions(baseW, baseH);
         }
 
+        /// <summary>判定为纯黑边框的通道亮度上限（刻意收紧，避免把暗部画面当成黑边）。</summary>
+        private const int BorderBlackMax = 16;
+
+        /// <summary>判定为纯白边框的通道亮度下限（刻意收紧，避免把高光当成白边）。</summary>
+        private const int BorderWhiteMin = 240;
+
+        /// <summary>边框像素必须是中性灰，R/G/B 极差超过该值即视为彩色内容。</summary>
+        private const int BorderNeutralTolerance = 10;
+
+        /// <summary>同一条边线内亮度极差上限：真实边框是同一块纯色，画面暗部/高光仍有起伏。</summary>
+        private const int BorderLineFlatnessTolerance = 8;
+
+        /// <summary>边框条占长边比例上限，避免整幅偏暗画面被整体判成边框。</summary>
+        private const double BorderMaxLengthRatio = 0.42;
+
+        /// <summary>对称容差：两侧厚度差超过较薄一侧的该比例即视为不对称，不予排除。</summary>
+        private const double BorderSymmetryToleranceRatio = 0.25;
+
+        private enum BorderTone
+        {
+            None,
+            Black,
+            White
+        }
+
         /// <summary>
-        /// 检测有效内容方向：剔除靠近长边边缘的连续纯黑与纯白矩形条（自动识别手机相册截屏等包含横版照片的竖版图片）
+        /// 检测有效内容方向：识别对称的纯黑/纯白上下（或左右）边框条，从而还原被 letterbox
+        /// 包裹的真实构图方向（例如手机相册里横版照片被存成带上下黑边的竖版图）。
+        /// <para>
+        /// 判定三重门禁，任何一项不满足都不排除，宁可漏判也不误判：
+        /// 1. 中性且足够极端（黑 ≤ <see cref="BorderBlackMax"/> / 白 ≥ <see cref="BorderWhiteMin"/>）；
+        /// 2. 整条边线是纯色块（亮度极差 ≤ <see cref="BorderLineFlatnessTolerance"/>）；
+        /// 3. <b>两侧必须成对且厚度接近</b>（见 <see cref="ResolveSymmetricBorder"/>）。
+        /// </para>
         /// </summary>
         public static TargetOrientation DetectEffectiveOrientation(
             int width,
@@ -51,83 +83,147 @@ namespace AutoCutPic.Core.Calculators
             if (width <= 0 || height <= 0 || getPixel == null)
                 return TargetOrientation.Landscape;
 
-            bool isPortrait = height > width;
-
-            static bool IsBorderColor(byte r, byte g, byte b)
+            if (height > width)
             {
-                bool isBlack = r <= 30 && g <= 30 && b <= 30;
-                bool isWhite = r >= 230 && g >= 230 && b >= 230;
-                return isBlack || isWhite;
-            }
+                // 长边为纵向：检查上下两条边框
+                int maxScan = Math.Max(1, (int)(height * BorderMaxLengthRatio));
+                int sampleStepX = Math.Max(1, width / 24);
 
-            if (isPortrait)
-            {
-                // 长边为纵向 (H > W)，检查顶部和底部连续纯黑/纯白条 (letterbox)
-                int sampleStepX = Math.Max(1, width / 20);
-                int maxScanH = (int)(height * 0.42);
-                const double threshold = 0.82;
+                int runTop = MeasureBorderRun(maxScan, y =>
+                    ClassifyBorderLine(width, sampleStepX, x => getPixel(x, y)));
 
-                int top = 0;
-                int missTop = 0;
-                for (int y = 0; y < maxScanH; y++)
-                {
-                    int bc = 0, total = 0;
-                    for (int x = 0; x < width; x += sampleStepX) { var (r, g, b) = getPixel(x, y); if (IsBorderColor(r, g, b)) bc++; total++; }
-                    if (total > 0 && (double)bc / total >= threshold) { top = y + 1; missTop = 0; }
-                    else if (++missTop > 2) break;
-                }
+                int runBottom = MeasureBorderRun(maxScan, offset =>
+                    ClassifyBorderLine(width, sampleStepX, x => getPixel(x, height - 1 - offset)));
 
-                int bottom = height - 1;
-                int missBot = 0;
-                for (int y = height - 1; y >= height - maxScanH; y--)
-                {
-                    int bc = 0, total = 0;
-                    for (int x = 0; x < width; x += sampleStepX) { var (r, g, b) = getPixel(x, y); if (IsBorderColor(r, g, b)) bc++; total++; }
-                    if (total > 0 && (double)bc / total >= threshold) { bottom = y - 1; missBot = 0; }
-                    else if (++missBot > 2) break;
-                }
+                int strip = ResolveSymmetricBorder(runTop, runBottom);
+                int effectiveH = Math.Max(1, height - (strip * 2));
 
-                int effectiveH = Math.Max(1, bottom - top + 1);
-                int effectiveW = width;
-
-                if (effectiveW > effectiveH)
-                    return TargetOrientation.Landscape;
-                return TargetOrientation.Portrait;
+                return width > effectiveH ? TargetOrientation.Landscape : TargetOrientation.Portrait;
             }
             else
             {
-                // 长边为横向 (W >= H)，检查左右两侧连续纯黑/纯白条 (pillarbox)
-                int sampleStepY = Math.Max(1, height / 20);
-                int maxScanW = (int)(width * 0.42);
-                const double threshold = 0.82;
+                // 长边为横向：检查左右两条边框
+                int maxScan = Math.Max(1, (int)(width * BorderMaxLengthRatio));
+                int sampleStepY = Math.Max(1, height / 24);
 
-                int left = 0;
-                int missLeft = 0;
-                for (int x = 0; x < maxScanW; x++)
-                {
-                    int bc = 0, total = 0;
-                    for (int y = 0; y < height; y += sampleStepY) { var (r, g, b) = getPixel(x, y); if (IsBorderColor(r, g, b)) bc++; total++; }
-                    if (total > 0 && (double)bc / total >= threshold) { left = x + 1; missLeft = 0; }
-                    else if (++missLeft > 2) break;
-                }
+                int runLeft = MeasureBorderRun(maxScan, x =>
+                    ClassifyBorderLine(height, sampleStepY, y => getPixel(x, y)));
 
-                int right = width - 1;
-                int missRight = 0;
-                for (int x = width - 1; x >= width - maxScanW; x--)
-                {
-                    int bc = 0, total = 0;
-                    for (int y = 0; y < height; y += sampleStepY) { var (r, g, b) = getPixel(x, y); if (IsBorderColor(r, g, b)) bc++; total++; }
-                    if (total > 0 && (double)bc / total >= threshold) { right = x - 1; missRight = 0; }
-                    else if (++missRight > 2) break;
-                }
+                int runRight = MeasureBorderRun(maxScan, offset =>
+                    ClassifyBorderLine(height, sampleStepY, y => getPixel(width - 1 - offset, y)));
 
-                int effectiveW = Math.Max(1, right - left + 1);
-                int effectiveH = height;
+                int strip = ResolveSymmetricBorder(runLeft, runRight);
+                int effectiveW = Math.Max(1, width - (strip * 2));
 
-                if (effectiveH > effectiveW)
-                    return TargetOrientation.Portrait;
-                return TargetOrientation.Landscape;
+                return height > effectiveW ? TargetOrientation.Portrait : TargetOrientation.Landscape;
             }
+        }
+
+        /// <summary>从起始边向内统计连续边框线的数量，遇到内容线或黑白混杂立即停止。</summary>
+        private static int MeasureBorderRun(int maxScan, Func<int, BorderTone> classifyOffset)
+        {
+            BorderTone tone = BorderTone.None;
+            int count = 0;
+
+            for (int offset = 0; offset < maxScan; offset++)
+            {
+                BorderTone current = classifyOffset(offset);
+                if (current == BorderTone.None)
+                {
+                    break;
+                }
+
+                if (tone == BorderTone.None)
+                {
+                    tone = current;
+                }
+                else if (tone != current)
+                {
+                    break; // 黑边与白边不得混在同一条边框里
+                }
+
+                count++;
+            }
+
+            return count;
+        }
+
+        /// <summary>把一整条边线判定为纯黑边、纯白边或内容；只要有一个采样点像内容就整条否定。</summary>
+        private static BorderTone ClassifyBorderLine(
+            int lineLength,
+            int sampleStep,
+            Func<int, (byte R, byte G, byte B)> sampleAt)
+        {
+            BorderTone tone = BorderTone.None;
+            int lumaMin = 255;
+            int lumaMax = 0;
+
+            for (int pos = 0; pos < lineLength; pos += sampleStep)
+            {
+                var (r, g, b) = sampleAt(pos);
+                BorderTone pixelTone = ClassifyBorderPixel(r, g, b);
+                if (pixelTone == BorderTone.None)
+                {
+                    return BorderTone.None;
+                }
+
+                if (tone == BorderTone.None)
+                {
+                    tone = pixelTone;
+                }
+                else if (tone != pixelTone)
+                {
+                    return BorderTone.None;
+                }
+
+                int luma = (r + g + b) / 3;
+                if (luma < lumaMin) lumaMin = luma;
+                if (luma > lumaMax) lumaMax = luma;
+            }
+
+            return lumaMax - lumaMin > BorderLineFlatnessTolerance ? BorderTone.None : tone;
+        }
+
+        private static BorderTone ClassifyBorderPixel(byte r, byte g, byte b)
+        {
+            int max = Math.Max(r, Math.Max(g, b));
+            int min = Math.Min(r, Math.Min(g, b));
+
+            if (max - min > BorderNeutralTolerance)
+            {
+                return BorderTone.None; // 有彩色，属于画面内容
+            }
+
+            if (max <= BorderBlackMax)
+            {
+                return BorderTone.Black;
+            }
+
+            if (min >= BorderWhiteMin)
+            {
+                return BorderTone.White;
+            }
+
+            return BorderTone.None;
+        }
+
+        /// <summary>
+        /// 两侧边框必须成对存在且厚度接近才允许排除，返回可安全裁掉的单侧厚度（0 表示不排除）。
+        /// 只有一侧有边框、或两侧厚度差异超过较薄一侧的
+        /// <see cref="BorderSymmetryToleranceRatio"/> 时，都判定为画面内容而非成像边框。
+        /// </summary>
+        public static int ResolveSymmetricBorder(int runA, int runB)
+        {
+            if (runA <= 0 || runB <= 0)
+            {
+                return 0; // 单侧边框不是 letterbox，排除它会直接切掉真实画面
+            }
+
+            int thinner = Math.Min(runA, runB);
+            int thicker = Math.Max(runA, runB);
+            int tolerance = Math.Max(2, (int)Math.Round(thinner * BorderSymmetryToleranceRatio));
+
+            return thicker - thinner <= tolerance ? thinner : 0;
         }
 
         /// <summary>

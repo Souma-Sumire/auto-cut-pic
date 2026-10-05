@@ -396,6 +396,146 @@ namespace AutoCutPic.Tests
             Assert.Equal(TargetOrientation.Portrait, orientation);
         }
 
+        // ── 边框误判防线 ─────────────────────────────────────────────────────────
+        // 宽度 70 / 高度 100 时，单侧被误判成 42 行边框（上限 42%）就足以把纵向构图
+        // 翻转成横向，因此以下用例的判定结果对误判非常敏感。
+
+        [Fact]
+        public void DetectEffectiveOrientation_DarkButNormalContent_ShouldNotBeTreatedAsBlackBars()
+        {
+            const int width = 70;
+            const int height = 100;
+
+            // 上下各 42 行是"较暗的正常画面"（暗部细节，非纯黑），中间是亮部内容
+            var orientation = CropGeometryCalculator.DetectEffectiveOrientation(width, height, (x, y) =>
+            {
+                bool isDarkContent = y < 42 || y >= 58;
+                if (isDarkContent)
+                {
+                    // 平均亮度约 28，落在旧实现"≤30 即纯黑"的误判区间内
+                    return ((byte)(26 + (x % 5)), (byte)(30 - (x % 4)), (byte)(24 + (x % 3)));
+                }
+                return ((byte)200, (byte)205, (byte)198);
+            });
+
+            Assert.Equal(TargetOrientation.Portrait, orientation);
+        }
+
+        [Fact]
+        public void DetectEffectiveOrientation_OverBrightEdges_ShouldNotBeTreatedAsWhiteBars()
+        {
+            const int width = 70;
+            const int height = 100;
+
+            // 上下各 42 行是"过亮的正常画面"（高光渐变），中间是中间调内容
+            var orientation = CropGeometryCalculator.DetectEffectiveOrientation(width, height, (x, y) =>
+            {
+                bool isBrightContent = y < 42 || y >= 58;
+                if (isBrightContent)
+                {
+                    // 232~255 的高光渐变，落在旧实现"≥230 即纯白"的误判区间内
+                    byte v = (byte)(232 + (x * 23 / width));
+                    return (v, v, v);
+                }
+                return ((byte)110, (byte)115, (byte)108);
+            });
+
+            Assert.Equal(TargetOrientation.Portrait, orientation);
+        }
+
+        [Fact]
+        public void DetectEffectiveOrientation_OneSidedBlackBar_ShouldNotBeStripped()
+        {
+            const int width = 70;
+            const int height = 100;
+
+            // 只有顶部有 42 行纯黑边，底部没有 -> 不是 letterbox，绝不能排除
+            var orientation = CropGeometryCalculator.DetectEffectiveOrientation(width, height, (x, y) =>
+            {
+                if (y < 42)
+                {
+                    return ((byte)0, (byte)0, (byte)0);
+                }
+                return ((byte)150, (byte)150, (byte)150);
+            });
+
+            Assert.Equal(TargetOrientation.Portrait, orientation);
+        }
+
+        [Fact]
+        public void DetectEffectiveOrientation_AsymmetricBarsBeyondTolerance_ShouldNotBeStripped()
+        {
+            const int width = 70;
+            const int height = 100;
+
+            // 上 20 行 / 下 40 行纯黑：厚度差 20 远超较薄一侧的 25% 容差，判定为画面内容
+            var orientation = CropGeometryCalculator.DetectEffectiveOrientation(width, height, (x, y) =>
+            {
+                if (y < 20 || y >= 60)
+                {
+                    return ((byte)0, (byte)0, (byte)0);
+                }
+                return ((byte)150, (byte)150, (byte)150);
+            });
+
+            Assert.Equal(TargetOrientation.Portrait, orientation);
+        }
+
+        [Fact]
+        public void DetectEffectiveOrientation_SymmetricBarsWithinTolerance_ShouldStillBeStripped()
+        {
+            const int width = 70;
+            const int height = 100;
+
+            // 上 38 行 / 下 40 行纯黑：厚度差在容差内，属于真实 letterbox，必须还原为横向
+            var orientation = CropGeometryCalculator.DetectEffectiveOrientation(width, height, (x, y) =>
+            {
+                if (y < 38 || y >= 60)
+                {
+                    return ((byte)0, (byte)0, (byte)0);
+                }
+                return ((byte)150, (byte)150, (byte)150);
+            });
+
+            Assert.Equal(TargetOrientation.Landscape, orientation);
+        }
+
+        [Fact]
+        public void DetectEffectiveOrientation_WhiteBarWithJpegNoise_ShouldStillBeStripped()
+        {
+            const int width = 120;
+            const int height = 200;
+
+            // 真实白边经 JPEG 压缩后并非绝对 255，仍应识别（避免修得过紧导致漏判）
+            var orientation = CropGeometryCalculator.DetectEffectiveOrientation(width, height, (x, y) =>
+            {
+                if (y < 60 || y >= 140)
+                {
+                    byte v = (byte)(252 + (x % 4));
+                    return (v, v, v);
+                }
+                return ((byte)100, (byte)100, (byte)100);
+            });
+
+            Assert.Equal(TargetOrientation.Landscape, orientation);
+        }
+
+        [Theory]
+        [InlineData(0, 50, 0)]    // 单侧不算边框
+        [InlineData(50, 0, 0)]    // 单侧不算边框
+        [InlineData(0, 0, 0)]
+        [InlineData(50, 50, 50)]  // 完全对称
+        [InlineData(38, 40, 38)]  // 差异在容差内 -> 取较薄一侧
+        [InlineData(50, 62, 50)]  // 差 12，容差 max(2, 12.5->13) -> 通过
+        [InlineData(50, 64, 0)]   // 差 14 超过 13 -> 不对称
+        [InlineData(20, 40, 0)]   // 差异过大
+        [InlineData(2, 3, 2)]     // 极小边框走最小容差 2
+        [InlineData(2, 5, 0)]
+        public void ResolveSymmetricBorder_ShouldOnlyAcceptPairedBarsWithinTolerance(int runA, int runB, int expected)
+        {
+            Assert.Equal(expected, CropGeometryCalculator.ResolveSymmetricBorder(runA, runB));
+        }
+
         [Fact]
         public void FillCrop_WithCropScale_ShouldScaleCropBoxAndAllow2DAxisMovement()
         {
