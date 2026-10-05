@@ -84,8 +84,9 @@ namespace AutoCutPic.Core
                 string json = File.ReadAllText(filePath);
                 return JsonSerializer.Deserialize<ProjectSessionData>(json, JsonOptions);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
+                System.Diagnostics.Debug.WriteLine($"[SessionManager] 读取会话文件失败: {filePath}, 原因: {ex.Message}");
                 return null;
             }
         }
@@ -99,27 +100,42 @@ namespace AutoCutPic.Core
                 string json = await File.ReadAllTextAsync(filePath);
                 return JsonSerializer.Deserialize<ProjectSessionData>(json, JsonOptions);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
+                System.Diagnostics.Debug.WriteLine($"[SessionManager] 读取会话文件失败: {filePath}, 原因: {ex.Message}");
                 return null;
             }
         }
 
-        public static bool HasAutoSaveDraft()
+        /// <summary>
+        /// 判断指定路径是否存在可恢复的工作区草稿；<paramref name="filePath"/> 为 null 时使用默认临时目录。
+        /// </summary>
+        public static bool HasAutoSaveDraft(string? filePath = null)
         {
-            return File.Exists(AutoSaveFilePath);
+            return File.Exists(filePath ?? AutoSaveFilePath);
         }
 
-        public static void ClearAutoSaveDraft()
+        /// <summary>
+        /// 幂等删除工作区草稿（文件不存在时不产生任何副作用）。
+        /// </summary>
+        public static void ClearAutoSaveDraft(string? filePath = null)
         {
+            string target = filePath ?? AutoSaveFilePath;
             try
             {
-                if (File.Exists(AutoSaveFilePath))
+                if (File.Exists(target))
                 {
-                    File.Delete(AutoSaveFilePath);
+                    File.Delete(target);
                 }
             }
-            catch { }
+            catch (IOException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SessionManager] 清理工作区草稿失败: {target}, 原因: {ex.Message}");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SessionManager] 无权清理工作区草稿: {target}, 原因: {ex.Message}");
+            }
         }
     }
 }

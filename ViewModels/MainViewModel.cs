@@ -201,6 +201,7 @@ namespace AutoCutPic.ViewModels
     {
         private readonly IImageProcessor _imageProcessor;
         private readonly PipelinePreExporter _preExporter;
+        private readonly string _autoSaveFilePath;
 
         private PhotoSize _selectedSize = PhotoSize.Inch6;
         private CutMode _selectedMode = CutMode.Fill;
@@ -233,6 +234,7 @@ namespace AutoCutPic.ViewModels
                 {
                     _selectedSize = value;
                     OnPropertyChanged();
+                    MarkSessionDirty();
                     UpdateAspectMatchForAll();
                     if (_matchedFilterMode != PhotoFilterMode.Show && SelectedPhoto?.IsAspectMatched == true)
                     {
@@ -599,14 +601,72 @@ namespace AutoCutPic.ViewModels
             }
         }
 
-        public bool HasAutoSaveDraft => SessionManager.HasAutoSaveDraft();
+        public bool HasAutoSaveDraft => SessionManager.HasAutoSaveDraft(_autoSaveFilePath);
+
+        /// <summary>当前工作区草稿的落盘路径（默认位于系统临时目录）。</summary>
+        public string AutoSaveFilePath => _autoSaveFilePath;
+
+        private bool _hasUnexportedChanges;
+
+        /// <summary>
+        /// 工作区是否存在尚未导出的编辑内容。
+        /// 只有为 true 时才允许生成/保留草稿文件，全部导出成功后自动转为 false 并清理草稿。
+        /// </summary>
+        public bool HasUnexportedChanges => _hasUnexportedChanges;
+
+        /// <summary>标记工作区产生了未导出的编辑内容。</summary>
+        public void MarkSessionDirty()
+        {
+            if (_hasUnexportedChanges)
+            {
+                return;
+            }
+
+            _hasUnexportedChanges = true;
+            OnPropertyChanged(nameof(HasUnexportedChanges));
+        }
+
+        private bool _hasRecoverableDraft;
+
+        /// <summary>启动时是否探测到可恢复的历史工作区草稿（仅提示，绝不自动载入）。</summary>
+        public bool HasRecoverableDraft
+        {
+            get => _hasRecoverableDraft;
+            private set
+            {
+                if (_hasRecoverableDraft != value)
+                {
+                    _hasRecoverableDraft = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private string _recoverableDraftText = "";
+
+        /// <summary>可恢复草稿的摘要文案（供空状态卡片展示）。</summary>
+        public string RecoverableDraftText
+        {
+            get => _recoverableDraftText;
+            private set
+            {
+                if (_recoverableDraftText != value)
+                {
+                    _recoverableDraftText = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public ICommand RestoreDraftCommand { get; }
+        public ICommand DiscardDraftCommand { get; }
 
         private Timer? _autoSaveTimer;
         private readonly object _autoSaveLock = new();
 
         public void RequestAutoSave()
         {
-            if (Photos.Count == 0) return;
+            if (Photos.Count == 0 || !_hasUnexportedChanges) return;
 
             lock (_autoSaveLock)
             {
@@ -621,10 +681,18 @@ namespace AutoCutPic.ViewModels
         public async Task SaveAutoSaveSessionAsync()
         {
             if (Photos.Count == 0) return;
+
+            // 已全部导出的工作区不再产生草稿，避免下次启动被误判为"未完成的工作"。
+            if (!_hasUnexportedChanges)
+            {
+                SessionManager.ClearAutoSaveDraft(_autoSaveFilePath);
+                return;
+            }
+
             try
             {
                 var data = CreateSessionSnapshot();
-                await SessionManager.SaveToFileAsync(data, SessionManager.AutoSaveFilePath);
+                await SessionManager.SaveToFileAsync(data, _autoSaveFilePath);
                 var dispatcher = System.Windows.Application.Current?.Dispatcher;
                 if (dispatcher != null)
                 {
@@ -640,18 +708,137 @@ namespace AutoCutPic.ViewModels
                     OnPropertyChanged(nameof(HasAutoSaveDraft));
                 }
             }
-            catch { }
+            catch (IOException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] 自动保存草稿失败: {ex.Message}");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] 自动保存草稿被拒绝: {ex.Message}");
+            }
         }
 
         public void SaveSessionImmediately()
         {
             if (Photos.Count == 0) return;
+
+            if (!_hasUnexportedChanges)
+            {
+                SessionManager.ClearAutoSaveDraft(_autoSaveFilePath);
+                return;
+            }
+
             try
             {
                 var data = CreateSessionSnapshot();
-                SessionManager.SaveToFile(data, SessionManager.AutoSaveFilePath);
+                SessionManager.SaveToFile(data, _autoSaveFilePath);
             }
-            catch { }
+            catch (IOException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] 关闭时保存草稿失败: {ex.Message}");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] 关闭时保存草稿被拒绝: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 工作区已被完整导出：停止自动保存计时器、清理草稿文件，
+        /// 并在用户产生新的编辑之前不再写入草稿。
+        /// </summary>
+        private void MarkSessionExported()
+        {
+            _hasUnexportedChanges = false;
+            OnPropertyChanged(nameof(HasUnexportedChanges));
+
+            lock (_autoSaveLock)
+            {
+                _autoSaveTimer?.Dispose();
+                _autoSaveTimer = null;
+            }
+
+            SessionManager.ClearAutoSaveDraft(_autoSaveFilePath);
+            ApplyRecoverableDraft(null, "");
+            OnPropertyChanged(nameof(HasAutoSaveDraft));
+            AutoSaveStatusText = "已全部导出，工作区草稿已归档";
+        }
+
+        /// <summary>
+        /// 仅探测草稿元信息并更新提示状态，<b>不会</b>载入任何照片。
+        /// 程序启动时调用，用于向用户提供显式的恢复入口。
+        /// </summary>
+        public async Task<bool> RefreshRecoverableDraftAsync()
+        {
+            ProjectSessionData? draft = null;
+            try
+            {
+                draft = await SessionManager.LoadFromFileAsync(_autoSaveFilePath);
+            }
+            catch (IOException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] 读取工作区草稿失败: {ex.Message}");
+            }
+
+            bool usable = draft?.Photos != null && draft.Photos.Any(p => File.Exists(p.FilePath));
+            ApplyRecoverableDraft(usable ? draft : null, usable ? BuildDraftSummary(draft) : "");
+            return usable;
+        }
+
+        /// <summary>用户显式确认后恢复历史工作区草稿。</summary>
+        public async Task<bool> RestoreAutoSaveDraftAsync()
+        {
+            ProjectSessionData? draft = null;
+            try
+            {
+                draft = await SessionManager.LoadFromFileAsync(_autoSaveFilePath);
+            }
+            catch (IOException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] 读取工作区草稿失败: {ex.Message}");
+            }
+
+            if (draft == null)
+            {
+                ApplyRecoverableDraft(null, "");
+                return false;
+            }
+
+            bool restored = await RestoreSessionAsync(draft);
+            if (!restored)
+            {
+                ApplyRecoverableDraft(null, "");
+                return false;
+            }
+
+            ApplyRecoverableDraft(null, "");
+            return true;
+        }
+
+        /// <summary>用户显式丢弃历史工作区草稿。</summary>
+        public void DiscardAutoSaveDraft()
+        {
+            SessionManager.ClearAutoSaveDraft(_autoSaveFilePath);
+            ApplyRecoverableDraft(null, "");
+            OnPropertyChanged(nameof(HasAutoSaveDraft));
+            StatusText = "已丢弃上次工作区草稿";
+        }
+
+        private void ApplyRecoverableDraft(ProjectSessionData? draft, string summary)
+        {
+            HasRecoverableDraft = draft != null;
+            RecoverableDraftText = draft != null ? summary : "";
+        }
+
+        private static string BuildDraftSummary(ProjectSessionData? draft)
+        {
+            if (draft?.Photos == null || draft.Photos.Count == 0)
+            {
+                return "";
+            }
+
+            int existing = draft.Photos.Count(p => File.Exists(p.FilePath));
+            return $"{existing} 张照片 · 保存于 {draft.LastSavedTime.ToLocalTime():yyyy-MM-dd HH:mm}";
         }
 
         public ProjectSessionData CreateSessionSnapshot()
@@ -735,24 +922,10 @@ namespace AutoCutPic.ViewModels
             int targetIdx = Math.Clamp(data.SelectedIndex, 0, Photos.Count - 1);
             SelectedPhoto = Photos[targetIdx];
 
+            MarkSessionDirty();
             StatusText = $"已恢复工作区进度 (共 {Photos.Count} 张照片)";
             AutoSaveStatusText = $"已恢复 {DateTime.Now:HH:mm:ss}";
             return true;
-        }
-
-        public async Task<bool> TryAutoRestoreLastSessionAsync()
-        {
-            if (!SessionManager.HasAutoSaveDraft()) return false;
-            try
-            {
-                var draft = await SessionManager.LoadFromFileAsync(SessionManager.AutoSaveFilePath);
-                if (draft != null && draft.Photos.Any(p => File.Exists(p.FilePath)))
-                {
-                    return await RestoreSessionAsync(draft);
-                }
-            }
-            catch { }
-            return false;
         }
 
         public void SaveProjectToFile(string filePath)
@@ -790,6 +963,7 @@ namespace AutoCutPic.ViewModels
                     or nameof(PhotoViewModel.Mode)
                     or nameof(PhotoViewModel.Orientation))
                 {
+                    MarkSessionDirty();
                     RequestAutoSave();
                 }
             };
@@ -859,10 +1033,14 @@ namespace AutoCutPic.ViewModels
             OnPropertyChanged(nameof(NeedAdjustCount));
         }
 
-        public MainViewModel(IImageProcessor? imageProcessor = null)
+        public MainViewModel(IImageProcessor? imageProcessor = null, string? autoSaveFilePath = null)
         {
             _imageProcessor = imageProcessor ?? ImageProcessor.Instance;
+            _autoSaveFilePath = autoSaveFilePath ?? SessionManager.AutoSaveFilePath;
             _selectedSize = Sizes.FirstOrDefault(s => s.Name == "6寸") ?? PhotoSize.Inch6;
+
+            RestoreDraftCommand = new RelayCommand(async _ => await RestoreAutoSaveDraftAsync());
+            DiscardDraftCommand = new RelayCommand(_ => DiscardAutoSaveDraft());
 
             ResetCropCommand = new RelayCommand(p =>
             {
@@ -939,7 +1117,7 @@ namespace AutoCutPic.ViewModels
             });
 
             ExportCommand = new RelayCommand(
-                async _ => await ExecuteExport(),
+                async _ => await ExportAsync(),
                 _ => !IsExporting && Photos.Count > 0
             );
 
@@ -1094,6 +1272,7 @@ namespace AutoCutPic.ViewModels
                 SelectedPhoto = Photos[0];
             }
 
+            MarkSessionDirty();
             RequestAutoSave();
         }
 
@@ -1205,7 +1384,10 @@ namespace AutoCutPic.ViewModels
             OnPropertyChanged(nameof(SelectedMode));
         }
 
-        private async Task ExecuteExport()
+        /// <summary>
+        /// 执行批量导出。全部照片导出成功后，工作区被视为已交付，草稿文件随之清理。
+        /// </summary>
+        public async Task ExportAsync()
         {
             if (!Photos.Any())
             {
@@ -1286,6 +1468,7 @@ namespace AutoCutPic.ViewModels
                         p.LastModifiedUtc
                     )));
                     PreExportStatusText = "";
+                    MarkSessionExported();
                 }
             }
             finally
