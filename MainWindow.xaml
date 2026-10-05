@@ -1247,24 +1247,6 @@
                                     FontSize="11"
                                     VerticalAlignment="Center"
                                     Margin="0,3,14,3" />
-
-                                <StackPanel
-                                    Orientation="Horizontal"
-                                    VerticalAlignment="Center"
-                                    Margin="0,3,0,3"
-                                    Visibility="{Binding HasPhotos, Converter={StaticResource BoolToVis}}">
-                                    <Ellipse
-                                        Width="6"
-                                        Height="6"
-                                        Fill="#4EC9B0"
-                                        Margin="0,0,5,0"
-                                        VerticalAlignment="Center" />
-                                    <TextBlock
-                                        Text="{Binding AutoSaveStatusText}"
-                                        Foreground="#888888"
-                                        FontSize="11"
-                                        VerticalAlignment="Center" />
-                                </StackPanel>
                             </WrapPanel>
                         </Border>
 
@@ -1746,20 +1728,15 @@
                             FontSize="11"
                             TextWrapping="Wrap"
                             Text="输出目录: 原图同级 Clipped_Photos" />
+
+                        <!--  导出专属文案：全局 StatusText 只归底部状态栏，此处不再重复呈现  -->
                         <TextBlock
                             Margin="0,6,0,0"
                             Foreground="#CCCCCC"
                             FontSize="12"
                             FontWeight="Medium"
                             TextWrapping="Wrap"
-                            Text="{Binding StatusText}" />
-                        <TextBlock
-                            Margin="0,4,0,0"
-                            Foreground="#4EC9B0"
-                            FontSize="11"
-                            TextWrapping="Wrap"
-                            Text="{Binding PreExportStatusText}"
-                            Visibility="{Binding HasPhotos, Converter={StaticResource BoolToVis}}" />
+                            Text="{Binding ExportStatusText}" />
                     </StackPanel>
 
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -1804,24 +1781,7 @@
                                     </Style>
                                 </Border.Style>
                                 <StackPanel>
-                                    <Grid>
-                                        <TextBlock Style="{StaticResource SectionTitle}" Text="当前照片" />
-                                        <TextBlock
-                                            HorizontalAlignment="Right"
-                                            FontSize="11"
-                                            Foreground="#0078D4"
-                                            FontWeight="Medium"
-                                            Text="{Binding OverallProgressText}" />
-                                    </Grid>
-                                    <ProgressBar
-                                        Height="3"
-                                        Margin="0,6,0,0"
-                                        Background="#2B2B2B"
-                                        Foreground="#0078D4"
-                                        BorderThickness="0"
-                                        Minimum="0"
-                                        Maximum="100"
-                                        Value="{Binding OverallProgressPercent, Mode=OneWay}" />
+                                    <TextBlock Style="{StaticResource SectionTitle}" Text="当前照片" />
                                     <TextBlock
                                         Margin="0,8,0,0"
                                         Text="{Binding SelectedPhoto.FileName}"
@@ -2076,32 +2036,8 @@
                     VerticalAlignment="Center"
                     Margin="0,3,16,3" />
 
-                <!--  导入进度（仅加载时可见）  -->
-                <StackPanel
-                    Orientation="Horizontal"
-                    VerticalAlignment="Center"
-                    Margin="0,3,16,3"
-                    Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
-                    <TextBlock Text="载入" Style="{StaticResource ToolbarLabel}" Margin="0,0,6,0" />
-                    <ProgressBar
-                        Width="90"
-                        Height="4"
-                        Background="#2B2B2B"
-                        Foreground="#0078D4"
-                        BorderThickness="0"
-                        Minimum="0"
-                        Maximum="100"
-                        Value="{Binding LoadingProgress}"
-                        VerticalAlignment="Center"
-                        Margin="0,0,6,0" />
-                    <TextBlock
-                        Text="{Binding LoadingStatusText}"
-                        Foreground="#888888"
-                        FontSize="11"
-                        VerticalAlignment="Center"
-                        TextTrimming="CharacterEllipsis"
-                        MaxWidth="200" />
-                </StackPanel>
+                <!--  导入进度交由全局载入遮罩单独呈现：该遮罩在加载期间覆盖整窗，
+                     状态栏再放一份只会被完全遮住，属于重复且不可见的死 UI  -->
 
                 <!--  裁剪工作总体进度  -->
                 <StackPanel

@@ -178,6 +178,12 @@ namespace AutoCutPic.Tests
             Assert.False(File.Exists(_draftPath));
             Assert.Contains("已全部导出", vm.AutoSaveStatusText);
 
+            // 导出结果只写在导出专属文案里，不得污染全局 StatusText（信息单一归属）；
+            // 同时 Progress<T> 的迟到回调不得把结果覆盖回 "正在导出 (N/N, 100%)"
+            Assert.Contains("导出完成", vm.ExportStatusText);
+            Assert.DoesNotContain("正在导出", vm.ExportStatusText);
+            Assert.DoesNotContain("导出完成", vm.StatusText);
+
             // 关闭程序时的兜底写入同样不得把已交付的工作区重新变成"未完成"
             vm.SaveSessionImmediately();
             Assert.False(File.Exists(_draftPath));

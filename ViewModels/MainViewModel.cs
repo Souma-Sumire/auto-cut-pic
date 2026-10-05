@@ -497,6 +497,26 @@ namespace AutoCutPic.ViewModels
             }
         }
 
+        private string _exportStatusText = "";
+
+        /// <summary>
+        /// 导出专属状态文案，只在属性面板的导出块呈现。
+        /// 与全局 <see cref="StatusText"/>（只在底部状态栏呈现）严格分离，
+        /// 避免同一条信息同时出现在两处。
+        /// </summary>
+        public string ExportStatusText
+        {
+            get => _exportStatusText;
+            set
+            {
+                if (_exportStatusText != value)
+                {
+                    _exportStatusText = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         private bool _isLoading;
         private double _loadingProgress;
         private string _loadingStatusText = "";
@@ -1072,9 +1092,10 @@ namespace AutoCutPic.ViewModels
         /// <summary>
         /// 按 <paramref name="direction"/>（-1 上一张 / +1 下一张）切换照片。
         /// <para>
-        /// 严格单向查找，<b>绝不绕回另一端</b>：已在首/尾时返回边界状态并写入
-        /// <see cref="StatusText"/> 提示用户；淡化/隐藏免修模式下若该方向只剩免修照片，
-        /// 同样停止并给出提示。
+        /// 严格单向查找，<b>绝不绕回另一端</b>：已在首/尾时返回边界状态；
+        /// 淡化/隐藏免修模式下若该方向只剩免修照片，同样停止。
+        /// 这里只返回状态而不写 <see cref="StatusText"/> —— 边界提示由视图层用
+        /// 一次性浮层呈现，避免同一条信息在状态栏与浮层上重复出现。
         /// </para>
         /// </summary>
         public PhotoNavigationStatus NavigateRelative(int direction)
@@ -1108,14 +1129,11 @@ namespace AutoCutPic.ViewModels
             bool atBoundary = step > 0 ? current >= Photos.Count - 1 : current <= 0;
             if (atBoundary)
             {
-                PhotoNavigationStatus boundary = step > 0
+                return step > 0
                     ? PhotoNavigationStatus.ReachedLast
                     : PhotoNavigationStatus.ReachedFirst;
-                StatusText = DescribeNavigationStatus(boundary);
-                return boundary;
             }
 
-            StatusText = DescribeNavigationStatus(PhotoNavigationStatus.NoActionableInDirection);
             return PhotoNavigationStatus.NoActionableInDirection;
         }
 
@@ -1596,10 +1614,19 @@ namespace AutoCutPic.ViewModels
             ExportProgress = 0;
             _exportCts = new CancellationTokenSource();
 
+            // Progress<T> 的派发是异步的，导出结束后仍可能有排队的进度回调到达。
+            // 结果文案一旦写入就用该标记封口，避免被 "正在导出 (N/N, 100%)" 覆盖。
+            int progressSealed = 0;
+
             var progress = new Progress<ExportProgressReport>(report =>
             {
+                if (Volatile.Read(ref progressSealed) != 0)
+                {
+                    return;
+                }
+
                 ExportProgress = report.Percentage;
-                StatusText = $"正在导出 ({report.ProcessedCount}/{report.TotalCount}, {report.Percentage:F0}%): {report.CurrentFileName}";
+                ExportStatusText = $"正在导出 ({report.ProcessedCount}/{report.TotalCount}, {report.Percentage:F0}%): {report.CurrentFileName}";
             });
 
             try
@@ -1630,17 +1657,19 @@ namespace AutoCutPic.ViewModels
                     }
                 );
 
+                Volatile.Write(ref progressSealed, 1);
+
                 if (result.IsCancelled)
                 {
-                    StatusText = $"导出已中止，已完成 {result.SuccessCount}/{result.TotalCount} 张。";
+                    ExportStatusText = $"导出已中止，已完成 {result.SuccessCount}/{result.TotalCount} 张。";
                 }
                 else if (result.FailedCount > 0)
                 {
-                    StatusText = $"导出完成：{result.SuccessCount} 成功，{result.FailedCount} 失败。";
+                    ExportStatusText = $"导出完成：{result.SuccessCount} 成功，{result.FailedCount} 失败。";
                 }
                 else
                 {
-                    StatusText = $"导出完成！全部 {result.SuccessCount} 张照片已成功保存至 Clipped_Photos";
+                    ExportStatusText = $"导出完成！全部 {result.SuccessCount} 张照片已成功保存至 Clipped_Photos";
                     _preExporter.MarkCompleted(Photos.Select(p => new PreExportItem(
                         p.FilePath,
                         p.OffsetX,

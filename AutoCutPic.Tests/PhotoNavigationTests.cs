@@ -49,12 +49,17 @@ namespace AutoCutPic.Tests
             vm.Photos.Add(p1);
             vm.Photos.Add(p2);
             vm.SelectedPhoto = p2;
+            string statusBefore = vm.StatusText;
 
             var status = vm.NavigateRelative(1);
 
             Assert.Equal(PhotoNavigationStatus.ReachedLast, status);
             Assert.Same(p2, vm.SelectedPhoto); // 绝不绕回第一张
-            Assert.Equal("已经是最后一张照片了", vm.StatusText);
+
+            // 边界提示只由视图层的一次性浮层呈现，不得同时写进全局 StatusText，
+            // 否则同一条信息会在浮层与底部状态栏上重复出现
+            Assert.Equal(statusBefore, vm.StatusText);
+            Assert.Equal("已经是最后一张照片了", MainViewModel.DescribeNavigationStatus(status));
         }
 
         [Fact]
@@ -66,12 +71,14 @@ namespace AutoCutPic.Tests
             vm.Photos.Add(p1);
             vm.Photos.Add(p2);
             vm.SelectedPhoto = p1;
+            string statusBefore = vm.StatusText;
 
             var status = vm.NavigateRelative(-1);
 
             Assert.Equal(PhotoNavigationStatus.ReachedFirst, status);
             Assert.Same(p1, vm.SelectedPhoto);
-            Assert.Equal("已经是第一张照片了", vm.StatusText);
+            Assert.Equal(statusBefore, vm.StatusText);
+            Assert.Equal("已经是第一张照片了", MainViewModel.DescribeNavigationStatus(status));
         }
 
         [Fact]
@@ -131,7 +138,7 @@ namespace AutoCutPic.Tests
             // 尾部只剩免修照片：停在原地并说明原因，而不是绕回去
             Assert.Equal(PhotoNavigationStatus.NoActionableInDirection, status);
             Assert.Same(actionable, vm.SelectedPhoto);
-            Assert.Equal("该方向已经没有需要调整的照片了", vm.StatusText);
+            Assert.Equal("该方向已经没有需要调整的照片了", MainViewModel.DescribeNavigationStatus(status));
         }
 
         [Fact]
