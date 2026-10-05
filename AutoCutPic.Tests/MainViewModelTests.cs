@@ -351,13 +351,15 @@ namespace AutoCutPic.Tests
             var vm = new MainViewModel();
             var p1 = new PhotoViewModel("test1.jpg")
             {
-                OffsetX = 0.25,
-                OffsetY = -0.15,
-                CropScale = 0.85,
                 Mode = CutMode.Fit,
+                CropScale = 0.85,
                 Orientation = AutoCutPic.Core.Calculators.TargetOrientation.Portrait,
                 IsAspectMatched = false
             };
+
+            // 两种模式各自持有偏移量，快照必须分别记录
+            p1.ApplyModeOffsets(0.25, -0.15, -0.35, 0.45);
+
             vm.Photos.Add(p1);
             vm.SelectedPhoto = p1;
 
@@ -368,6 +370,8 @@ namespace AutoCutPic.Tests
             Assert.Equal("test1.jpg", snapshot.Photos[0].FilePath);
             Assert.Equal(0.25, snapshot.Photos[0].OffsetX);
             Assert.Equal(-0.15, snapshot.Photos[0].OffsetY);
+            Assert.Equal(-0.35, snapshot.Photos[0].OffsetXFit);
+            Assert.Equal(0.45, snapshot.Photos[0].OffsetYFit);
             Assert.Equal(0.85, snapshot.Photos[0].CropScale);
             Assert.Equal(CutMode.Fit, snapshot.Photos[0].Mode);
             Assert.Equal(AutoCutPic.Core.Calculators.TargetOrientation.Portrait, snapshot.Photos[0].Orientation);

@@ -176,7 +176,8 @@ namespace AutoCutPic.Core
 
             if (mode == CutMode.Fit)
             {
-                // Fit 留白模式：相纸作为纯白底板居中呈现，照片根据偏移与缩放排版，未填满区域为自定义白边，不限制剪切移动
+                // Fit 留白模式：相纸作为纯白底板居中呈现，照片按偏移与缩放排版，空白处即白边；
+                // 平移范围严格等于白边余量，保证照片始终完整留在相纸内
                 double paperScale = Math.Min(availW / targetW, availH / targetH);
                 paperW = Math.Max(10, targetW * paperScale);
                 paperH = Math.Max(10, targetH * paperScale);
@@ -191,14 +192,12 @@ namespace AutoCutPic.Core
                 imgW = Math.Max(10, origW * baseImgScale * scale);
                 imgH = Math.Max(10, origH * baseImgScale * scale);
 
-                double baseImgX = (paperW - imgW) / 2.0;
-                double baseImgY = (paperH - imgH) / 2.0;
+                // 留白模式的可平移范围即白边余量：照片必须完整落在相纸内，绝不被相纸边缘裁切
+                excessW = AutoCutPic.Core.Calculators.CropGeometryCalculator.CalculateFitShiftRange(paperW, imgW);
+                excessH = AutoCutPic.Core.Calculators.CropGeometryCalculator.CalculateFitShiftRange(paperH, imgH);
 
-                excessW = Math.Max(paperW - imgW, paperW * 0.8);
-                excessH = Math.Max(paperH - imgH, paperH * 0.8);
-
-                imgX = baseImgX + (Math.Clamp(offsetX, -0.5, 0.5) * excessW);
-                imgY = baseImgY + (Math.Clamp(offsetY, -0.5, 0.5) * excessH);
+                imgX = AutoCutPic.Core.Calculators.CropGeometryCalculator.CalculateFitImagePosition(paperW, imgW, offsetX);
+                imgY = AutoCutPic.Core.Calculators.CropGeometryCalculator.CalculateFitImagePosition(paperH, imgH, offsetY);
             }
             else
             {

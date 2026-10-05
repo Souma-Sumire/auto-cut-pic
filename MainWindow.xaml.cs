@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using AutoCutPic.Core;
+using AutoCutPic.Core.Calculators;
 using AutoCutPic.ViewModels;
 
 namespace AutoCutPic;
@@ -272,6 +273,23 @@ public partial class MainWindow : Window
                 photo.Orientation,
                 photo.CropScale
             );
+
+            if (geo.IsFitMode)
+            {
+                // 留白模式：照片本身跟随鼠标平移，可平移范围即白边余量。
+                // 先按像素推算目标位置再反算偏移量，保证偏移量与画面位置一一对应（无夹取死区）。
+                if (geo.ExcessW > 0)
+                {
+                    double startX = CropGeometryCalculator.CalculateFitImagePosition(geo.PaperWidth, geo.ImgWidth, _dragStartOffsetX);
+                    photo.OffsetX = CropGeometryCalculator.CalculateFitOffsetFromPosition(geo.PaperWidth, geo.ImgWidth, startX + deltaX);
+                }
+                if (geo.ExcessH > 0)
+                {
+                    double startY = CropGeometryCalculator.CalculateFitImagePosition(geo.PaperHeight, geo.ImgHeight, _dragStartOffsetY);
+                    photo.OffsetY = CropGeometryCalculator.CalculateFitOffsetFromPosition(geo.PaperHeight, geo.ImgHeight, startY + deltaY);
+                }
+                return;
+            }
 
             if (geo.ExcessW > 1)
             {

@@ -211,6 +211,45 @@ namespace AutoCutPic.Core.Calculators
         }
 
         /// <summary>
+        /// Fit 留白模式下照片在相纸内的可平移像素范围（即白边余量）。
+        /// <para>
+        /// 不变量：留白模式必须完整保留照片，故平移范围严格等于 <c>相纸尺寸 - 照片尺寸</c>，
+        /// 不允许出现负白边。某一方向余量为 0（照片已贴满相纸）时该方向不可平移，
+        /// 否则照片会被相纸边缘裁掉，与"留白完整"的语义相悖。
+        /// </para>
+        /// </summary>
+        public static double CalculateFitShiftRange(double paperSize, double scaledSize)
+        {
+            return Math.Max(0, paperSize - scaledSize);
+        }
+
+        /// <summary>
+        /// 把归一化偏移量 [-0.5, 0.5] 换算为 Fit 模式下照片左上角坐标，结果始终夹取在相纸内。
+        /// <c>-0.5</c> 贴合起始边、<c>0</c> 居中、<c>0.5</c> 贴合结束边，与 Fill 模式的偏移语义完全对称。
+        /// </summary>
+        public static double CalculateFitImagePosition(double paperSize, double scaledSize, double offset)
+        {
+            double range = CalculateFitShiftRange(paperSize, scaledSize);
+            double position = (range / 2.0) + (Math.Clamp(offset, -0.5, 0.5) * range);
+            return Math.Clamp(position, 0, range);
+        }
+
+        /// <summary>
+        /// <see cref="CalculateFitImagePosition"/> 的逆运算：把照片目标位置反算回归一化偏移量。
+        /// 拖拽交互使用它，保证偏移量与画面位置一一对应，避免夹取产生"死区"。
+        /// </summary>
+        public static double CalculateFitOffsetFromPosition(double paperSize, double scaledSize, double position)
+        {
+            double range = CalculateFitShiftRange(paperSize, scaledSize);
+            if (range <= 0.0001)
+            {
+                return 0;
+            }
+
+            return Math.Clamp((position - (range / 2.0)) / range, -0.5, 0.5);
+        }
+
+        /// <summary>
         /// 计算留白完整（Fit）模式下，照片在目标相纸上的等比缩放与自定义白边排版位置
         /// </summary>
         public static FitPlacement CalculateFitPlacement(
@@ -241,14 +280,8 @@ namespace AutoCutPic.Core.Calculators
             int scaledW = Math.Max(1, (int)Math.Round(photoWidth * effectiveScale, MidpointRounding.AwayFromZero));
             int scaledH = Math.Max(1, (int)Math.Round(photoHeight * effectiveScale, MidpointRounding.AwayFromZero));
 
-            double baseLeft = (targetPaper.Width - scaledW) / 2.0;
-            double baseTop = (targetPaper.Height - scaledH) / 2.0;
-
-            double shiftRangeX = Math.Max(targetPaper.Width - scaledW, targetPaper.Width * 0.8);
-            double shiftRangeY = Math.Max(targetPaper.Height - scaledH, targetPaper.Height * 0.8);
-
-            int marginLeft = (int)Math.Round(baseLeft + (Math.Clamp(offsetX, -0.5, 0.5) * shiftRangeX));
-            int marginTop = (int)Math.Round(baseTop + (Math.Clamp(offsetY, -0.5, 0.5) * shiftRangeY));
+            int marginLeft = (int)Math.Round(CalculateFitImagePosition(targetPaper.Width, scaledW, offsetX));
+            int marginTop = (int)Math.Round(CalculateFitImagePosition(targetPaper.Height, scaledH, offsetY));
 
             return new FitPlacement(
                 targetPaper.Width,
@@ -292,12 +325,8 @@ namespace AutoCutPic.Core.Calculators
                 double imgScale = Math.Min(paperW / photoWidth, paperH / photoHeight);
                 double imgW = Math.Max(5, Math.Round(photoWidth * imgScale));
                 double imgH = Math.Max(5, Math.Round(photoHeight * imgScale));
-                double baseLeft = (paperW - imgW) / 2.0;
-                double baseTop = (paperH - imgH) / 2.0;
-                double shiftRangeX = Math.Max(paperW - imgW, paperW * 0.8);
-                double shiftRangeY = Math.Max(paperH - imgH, paperH * 0.8);
-                double left = baseLeft + (Math.Clamp(offsetX, -0.5, 0.5) * shiftRangeX);
-                double top = baseTop + (Math.Clamp(offsetY, -0.5, 0.5) * shiftRangeY);
+                double left = CalculateFitImagePosition(paperW, imgW, offsetX);
+                double top = CalculateFitImagePosition(paperH, imgH, offsetY);
 
                 return new BatchCardLayout(paperW, paperH, imgW, imgH, left, top, true);
             }

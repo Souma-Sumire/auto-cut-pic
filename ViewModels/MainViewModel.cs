@@ -34,8 +34,10 @@ namespace AutoCutPic.ViewModels
 
     public class PhotoViewModel : INotifyPropertyChanged
     {
-        private double _offsetX;
-        private double _offsetY;
+        private double _fillOffsetX;
+        private double _fillOffsetY;
+        private double _fitOffsetX;
+        private double _fitOffsetY;
         private BitmapSource? _thumbnail;
         private int _originalWidth;
         private int _originalHeight;
@@ -65,26 +67,85 @@ namespace AutoCutPic.ViewModels
 
         public DateTime LastModifiedUtc { get; set; } = DateTime.UtcNow;
 
+        /// <summary>
+        /// 当前裁切模式下的归一化构图偏移量（定义域 [-0.5, 0.5]）。
+        /// <para>
+        /// 裁剪填充（Fill）与留白完整（Fit）各自独立记忆偏移量：Fill 的偏移量表示
+        /// 裁切窗口在原图内的取景位置，Fit 的偏移量表示照片在相纸白边内的排版位置，
+        /// 两者归一化基准完全不同，因此切换模式时互不影响。
+        /// </para>
+        /// </summary>
         public double OffsetX
         {
-            get => _offsetX;
+            get => _mode == CutMode.Fit ? _fitOffsetX : _fillOffsetX;
             set
             {
-                _offsetX = Math.Clamp(value, -0.5, 0.5);
+                double clamped = Math.Clamp(value, -0.5, 0.5);
+                if (_mode == CutMode.Fit)
+                {
+                    _fitOffsetX = clamped;
+                }
+                else
+                {
+                    _fillOffsetX = clamped;
+                }
+
                 LastModifiedUtc = DateTime.UtcNow;
                 OnPropertyChanged();
             }
         }
 
+        /// <summary>当前裁切模式下的归一化构图偏移量，语义同 <see cref="OffsetX"/>。</summary>
         public double OffsetY
         {
-            get => _offsetY;
+            get => _mode == CutMode.Fit ? _fitOffsetY : _fillOffsetY;
             set
             {
-                _offsetY = Math.Clamp(value, -0.5, 0.5);
+                double clamped = Math.Clamp(value, -0.5, 0.5);
+                if (_mode == CutMode.Fit)
+                {
+                    _fitOffsetY = clamped;
+                }
+                else
+                {
+                    _fillOffsetY = clamped;
+                }
+
                 LastModifiedUtc = DateTime.UtcNow;
                 OnPropertyChanged();
             }
+        }
+
+        /// <summary>裁剪填充（Fill）模式的偏移量，供工程序列化使用。</summary>
+        public double FillOffsetX => _fillOffsetX;
+
+        /// <summary>裁剪填充（Fill）模式的偏移量，供工程序列化使用。</summary>
+        public double FillOffsetY => _fillOffsetY;
+
+        /// <summary>留白完整（Fit）模式的偏移量，供工程序列化使用。</summary>
+        public double FitOffsetX => _fitOffsetX;
+
+        /// <summary>留白完整（Fit）模式的偏移量，供工程序列化使用。</summary>
+        public double FitOffsetY => _fitOffsetY;
+
+        /// <summary>
+        /// 一次性写入两种模式各自的构图偏移量（用于工程/草稿恢复），
+        /// 避免直接赋值时受 <see cref="Mode"/> 当前值影响。
+        /// </summary>
+        public void ApplyModeOffsets(double fillX, double fillY, double fitX, double fitY)
+        {
+            _fillOffsetX = Math.Clamp(fillX, -0.5, 0.5);
+            _fillOffsetY = Math.Clamp(fillY, -0.5, 0.5);
+            _fitOffsetX = Math.Clamp(fitX, -0.5, 0.5);
+            _fitOffsetY = Math.Clamp(fitY, -0.5, 0.5);
+            OnPropertyChanged(nameof(OffsetX));
+            OnPropertyChanged(nameof(OffsetY));
+        }
+
+        /// <summary>同时清空两种模式的构图偏移量（R 键重置构图）。</summary>
+        public void ResetModeOffsets()
+        {
+            ApplyModeOffsets(0, 0, 0, 0);
         }
 
         public BitmapSource? Thumbnail
@@ -109,6 +170,9 @@ namespace AutoCutPic.ViewModels
                     _mode = value;
                     LastModifiedUtc = DateTime.UtcNow;
                     OnPropertyChanged();
+                    // 两种模式各自持有偏移量，切换后必须通知界面重新读取当前模式的构图
+                    OnPropertyChanged(nameof(OffsetX));
+                    OnPropertyChanged(nameof(OffsetY));
                 }
             }
         }
@@ -853,8 +917,10 @@ namespace AutoCutPic.ViewModels
                 Photos = Photos.Select(p => new PhotoSessionItem
                 {
                     FilePath = p.FilePath,
-                    OffsetX = p.OffsetX,
-                    OffsetY = p.OffsetY,
+                    OffsetX = p.FillOffsetX,
+                    OffsetY = p.FillOffsetY,
+                    OffsetXFit = p.FitOffsetX,
+                    OffsetYFit = p.FitOffsetY,
                     CropScale = p.CropScale,
                     Mode = p.Mode,
                     Orientation = p.Orientation,
@@ -885,13 +951,15 @@ namespace AutoCutPic.ViewModels
             {
                 var p = new PhotoViewModel(item.FilePath)
                 {
-                    OffsetX = item.OffsetX,
-                    OffsetY = item.OffsetY,
                     CropScale = item.CropScale,
                     Mode = item.Mode,
                     Orientation = item.Orientation,
                     IsAspectMatched = item.IsAspectMatched
                 };
+
+                var offsets = item.ResolveOffsets();
+                p.ApplyModeOffsets(offsets.FillX, offsets.FillY, offsets.FitX, offsets.FitY);
+
                 AttachPhotoChangeHandler(p);
                 photoList.Add(p);
             }
@@ -996,8 +1064,8 @@ namespace AutoCutPic.ViewModels
 
             foreach (var photo in list)
             {
-                photo.OffsetX = 0.0;
-                photo.OffsetY = 0.0;
+                // 重置构图对两种裁切模式同时生效，避免切换模式后又冒出一份旧构图
+                photo.ResetModeOffsets();
                 photo.CropScale = 1.0;
             }
 

@@ -434,6 +434,121 @@ namespace AutoCutPic.Tests
             Assert.True(layoutHalf.CropWidth < layout1.CropWidth);
             Assert.True(layoutHalf.CropHeight < layout1.CropHeight);
         }
+
+        // ── 留白完整（Fit）模式的完整性不变量 ────────────────────────────────────
+        // 留白模式的语义是"完整保留照片 + 白边"，任何偏移量都不得让照片越出相纸，
+        // 否则导出时照片会被相纸边缘裁掉，静默丢失像素。
+
+        [Theory]
+        [InlineData(-0.5)]
+        [InlineData(-0.25)]
+        [InlineData(0.0)]
+        [InlineData(0.25)]
+        [InlineData(0.5)]
+        [InlineData(-3.0)] // 越界输入必须被夹取
+        [InlineData(3.0)]
+        public void FitPlacement_WithAnyOffset_ShouldNeverCutPhoto(double offset)
+        {
+            var paper = new PaperDimensions(1000, 1000);
+
+            foreach (double cropScale in new[] { 1.0, 0.8, 0.5 })
+            {
+                var fit = CropGeometryCalculator.CalculateFitPlacement(1600, 900, paper, offset, offset, cropScale);
+
+                Assert.True(fit.MarginLeft >= 0, $"offset={offset} scale={cropScale} 左边距为负，照片被裁切");
+                Assert.True(fit.MarginTop >= 0, $"offset={offset} scale={cropScale} 上边距为负，照片被裁切");
+                Assert.True(
+                    fit.MarginLeft + fit.ScaledWidth <= fit.TargetWidth,
+                    $"offset={offset} scale={cropScale} 照片右侧越出相纸");
+                Assert.True(
+                    fit.MarginTop + fit.ScaledHeight <= fit.TargetHeight,
+                    $"offset={offset} scale={cropScale} 照片底部越出相纸");
+            }
+        }
+
+        [Fact]
+        public void FitPlacement_WithOffsetExtremes_ShouldFlushToPaperEdges()
+        {
+            var paper = new PaperDimensions(1000, 1000);
+
+            // 照片 1600x900 -> 1000x563，纵向白边余量 437
+            var flushTop = CropGeometryCalculator.CalculateFitPlacement(1600, 900, paper, 0, -0.5);
+            Assert.Equal(0, flushTop.MarginTop);
+
+            var flushBottom = CropGeometryCalculator.CalculateFitPlacement(1600, 900, paper, 0, 0.5);
+            Assert.Equal(flushTop.TargetHeight - flushTop.ScaledHeight, flushBottom.MarginTop);
+
+            // 横向余量为 0（照片已贴满相纸宽度），任何偏移量都不能让照片移出
+            Assert.Equal(0, CropGeometryCalculator.CalculateFitPlacement(1600, 900, paper, -0.5, 0).MarginLeft);
+            Assert.Equal(0, CropGeometryCalculator.CalculateFitPlacement(1600, 900, paper, 0.5, 0).MarginLeft);
+        }
+
+        [Fact]
+        public void CalculateFitShiftRange_ShouldEqualWhiteMargin_AndNeverGoNegative()
+        {
+            Assert.Equal(437, CropGeometryCalculator.CalculateFitShiftRange(1000, 563));
+            Assert.Equal(0, CropGeometryCalculator.CalculateFitShiftRange(1000, 1000));
+            // 照片大于相纸（异常输入）时不可平移，而不是产生负范围
+            Assert.Equal(0, CropGeometryCalculator.CalculateFitShiftRange(500, 800));
+        }
+
+        [Fact]
+        public void CalculateFitOffsetFromPosition_ShouldBeInverseOfCalculateFitImagePosition()
+        {
+            const double paper = 1000;
+            const double scaled = 400;
+            double range = CropGeometryCalculator.CalculateFitShiftRange(paper, scaled);
+
+            // 位置 -> 偏移量 -> 位置 必须闭合
+            foreach (double position in new[] { 0.0, 100.0, range / 2.0, 300.0, range })
+            {
+                double offset = CropGeometryCalculator.CalculateFitOffsetFromPosition(paper, scaled, position);
+                double roundTrip = CropGeometryCalculator.CalculateFitImagePosition(paper, scaled, offset);
+                Assert.Equal(position, roundTrip, 6);
+            }
+
+            // 越界位置被夹取到可见边界，而不是产生死区
+            Assert.Equal(-0.5, CropGeometryCalculator.CalculateFitOffsetFromPosition(paper, scaled, -999), 6);
+            Assert.Equal(0, CropGeometryCalculator.CalculateFitImagePosition(paper, scaled, -999), 6);
+
+            Assert.Equal(0.5, CropGeometryCalculator.CalculateFitOffsetFromPosition(paper, scaled, 9999), 6);
+            Assert.Equal(range, CropGeometryCalculator.CalculateFitImagePosition(paper, scaled, 9999), 6);
+
+            // 无白边余量时偏移量恒为 0，避免拖拽产生"空转"
+            Assert.Equal(0, CropGeometryCalculator.CalculateFitOffsetFromPosition(500, 500, 100));
+        }
+
+        [Fact]
+        public void FitDragArithmetic_ShouldFollowPointerAndStopAtPaperEdge()
+        {
+            // 复刻视口拖拽分支的算术：位置推进 -> 反算偏移量（MainWindow.CropHandle_MouseMove）
+            const double paper = 478;  // 相纸在视口内的宽度 (DIP)
+            const double img = 321;    // 照片在视口内的宽度 (DIP)
+
+            double range = CropGeometryCalculator.CalculateFitShiftRange(paper, img);
+            Assert.Equal(157, range, 6);
+
+            double startPos = CropGeometryCalculator.CalculateFitImagePosition(paper, img, 0);
+            Assert.Equal(range / 2, startPos, 6); // 居中起步
+
+            // 小幅拖动：位移必须与像素增量一一对应（既无死区也无加速）
+            double offsetMid = CropGeometryCalculator.CalculateFitOffsetFromPosition(paper, img, startPos + 40);
+            Assert.Equal(startPos + 40, CropGeometryCalculator.CalculateFitImagePosition(paper, img, offsetMid), 6);
+
+            // 拖出余量：必须停在相纸右边缘，且偏移量恰好取满 +0.5
+            double offsetRight = CropGeometryCalculator.CalculateFitOffsetFromPosition(paper, img, startPos + 300);
+            Assert.Equal(0.5, offsetRight, 6);
+            Assert.Equal(range, CropGeometryCalculator.CalculateFitImagePosition(paper, img, offsetRight), 6);
+
+            // 反向拖到最左：贴合相纸左边缘
+            double offsetLeft = CropGeometryCalculator.CalculateFitOffsetFromPosition(paper, img, startPos + 300 - 1000);
+            Assert.Equal(-0.5, offsetLeft, 6);
+            Assert.Equal(0, CropGeometryCalculator.CalculateFitImagePosition(paper, img, offsetLeft), 6);
+
+            // 无余量（照片贴满相纸）时任何拖动都不得产生位移，也不得改写偏移量
+            Assert.Equal(0, CropGeometryCalculator.CalculateFitShiftRange(500, 500), 6);
+            Assert.Equal(0, CropGeometryCalculator.CalculateFitOffsetFromPosition(500, 500, 999));
+        }
     }
 }
 
