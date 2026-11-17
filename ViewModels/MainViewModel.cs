@@ -1614,19 +1614,23 @@ namespace AutoCutPic.ViewModels
             ExportProgress = 0;
             _exportCts = new CancellationTokenSource();
 
-            // Progress<T> 的派发是异步的，导出结束后仍可能有排队的进度回调到达。
-            // 结果文案一旦写入就用该标记封口，避免被 "正在导出 (N/N, 100%)" 覆盖。
-            int progressSealed = 0;
+            // Progress<T> 的派发是异步的，无 SynchronizationContext 时回调会在线程池与后续代码并发执行。
+            // 通过同一把锁保护封口标记与状态写入，避免检查通过后在结果写入之后才执行覆盖。
+            var progressGate = new object();
+            bool progressSealed = false;
 
             var progress = new Progress<ExportProgressReport>(report =>
             {
-                if (Volatile.Read(ref progressSealed) != 0)
+                lock (progressGate)
                 {
-                    return;
-                }
+                    if (progressSealed)
+                    {
+                        return;
+                    }
 
-                ExportProgress = report.Percentage;
-                ExportStatusText = $"正在导出 ({report.ProcessedCount}/{report.TotalCount}, {report.Percentage:F0}%): {report.CurrentFileName}";
+                    ExportProgress = report.Percentage;
+                    ExportStatusText = $"正在导出 ({report.ProcessedCount}/{report.TotalCount}, {report.Percentage:F0}%): {report.CurrentFileName}";
+                }
             });
 
             try
@@ -1657,19 +1661,26 @@ namespace AutoCutPic.ViewModels
                     }
                 );
 
-                Volatile.Write(ref progressSealed, 1);
+                lock (progressGate)
+                {
+                    progressSealed = true;
 
-                if (result.IsCancelled)
-                {
-                    ExportStatusText = $"导出已中止，已完成 {result.SuccessCount}/{result.TotalCount} 张。";
+                    if (result.IsCancelled)
+                    {
+                        ExportStatusText = $"导出已中止，已完成 {result.SuccessCount}/{result.TotalCount} 张。";
+                    }
+                    else if (result.FailedCount > 0)
+                    {
+                        ExportStatusText = $"导出完成：{result.SuccessCount} 成功，{result.FailedCount} 失败。";
+                    }
+                    else
+                    {
+                        ExportStatusText = $"导出完成！全部 {result.SuccessCount} 张照片已成功保存至 Clipped_Photos";
+                    }
                 }
-                else if (result.FailedCount > 0)
+
+                if (!result.IsCancelled && result.FailedCount == 0)
                 {
-                    ExportStatusText = $"导出完成：{result.SuccessCount} 成功，{result.FailedCount} 失败。";
-                }
-                else
-                {
-                    ExportStatusText = $"导出完成！全部 {result.SuccessCount} 张照片已成功保存至 Clipped_Photos";
                     _preExporter.MarkCompleted(Photos.Select(p => new PreExportItem(
                         p.FilePath,
                         p.OffsetX,
@@ -1686,6 +1697,11 @@ namespace AutoCutPic.ViewModels
             }
             finally
             {
+                lock (progressGate)
+                {
+                    progressSealed = true;
+                }
+
                 IsExporting = false;
                 _exportCts.Dispose();
                 _exportCts = null;
